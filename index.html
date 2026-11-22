@@ -1,0 +1,794 @@
+<title>Daily Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column, a segmented tab bar, quiz cards on paper; the simulator lives on a dark "bench screen" in both themes */
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --fg:#18231E; --muted:#5B6B63; --line:#D9E0DB;
+  --accent:#1D6B4E; --accent-ink:#FFFFFF; --copper:#A85A22;
+  --ok:#1F7A45; --ok-bg:#E3F3E8; --bad:#B4351F; --bad-bg:#FBE7E2;
+  --screen:#0E1A16; --screen-line:#24372F;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101714; --surface:#17211D; --fg:#E4ECE7; --muted:#93A69C; --line:#2A3832;
+  --accent:#4FB98A; --accent-ink:#0B1410; --copper:#E0995C;
+  --ok:#5CCB8A; --ok-bg:#16301F; --bad:#F08A72; --bad-bg:#3A1C16;
+  --screen:#0A1310; --screen-line:#22342C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101714; --surface:#17211D; --fg:#E4ECE7; --muted:#93A69C; --line:#2A3832;
+  --accent:#4FB98A; --accent-ink:#0B1410; --copper:#E0995C;
+  --ok:#5CCB8A; --ok-bg:#16301F; --bad:#F08A72; --bad-bg:#3A1C16;
+  --screen:#0A1310; --screen-line:#22342C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:860px;margin:0 auto}
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:18px 14px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:-.01em;margin:0}
+.brand span{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+@media (max-width:520px){.brand span{display:none}}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.tabs a{font-weight:600;font-size:.9rem;color:var(--muted);text-decoration:none;padding:6px 14px;border-radius:7px}
+.tabs a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+.tabs a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-family:var(--f-display);font-weight:800;font-size:1.25rem;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* today */
+.dayhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 18px;margin-block:6px 14px}
+.stats{display:flex;gap:18px}
+.stat b{display:block;font-family:var(--f-display);font-size:1.35rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat small{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.meter{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px}
+.meter i{height:6px;border-radius:3px;background:var(--line)}
+.meter i.ok{background:var(--ok)} .meter i.bad{background:var(--bad)}
+.qlist{display:flex;flex-direction:column;gap:16px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.q-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.chip{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--copper);border:1px solid currentColor;border-radius:999px;padding:1px 8px}
+.lvl{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.qn{margin-left:auto;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.q-text{font-size:1.05rem;font-weight:600;margin:0 0 12px;line-height:1.45}
+.schem{margin:0 0 14px;background:var(--screen);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.schem canvas{width:100%;display:block}
+.schem button{align-self:flex-end}
+.choices{display:grid;gap:8px}
+.choice{text-align:left;font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;display:flex;gap:10px;align-items:flex-start}
+.choice:hover:not(:disabled){border-color:var(--accent)}
+.choice .k{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);padding-top:2px}
+.choice.right{background:var(--ok-bg);border-color:var(--ok)}
+.choice.wrong{background:var(--bad-bg);border-color:var(--bad)}
+.choice:disabled{cursor:default}
+.numform{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.numform input{font:inherit;font-family:var(--f-mono);width:9em;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.numform .unit{font-family:var(--f-mono);color:var(--muted)}
+.btn{font:inherit;font-weight:600;font-size:.9rem;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:5px 10px;font-size:.8rem}
+.btn:disabled{opacity:.5;cursor:default}
+.result{margin-top:12px;border-radius:9px;padding:12px 14px;border-left:3px solid var(--ok);background:var(--ok-bg)}
+.result.no{border-left-color:var(--bad);background:var(--bad-bg)}
+.result strong{display:block;margin-bottom:4px}
+.result p{margin:.3em 0}
+.result .key{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.done{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.section-label{margin:26px 0 10px}
+/* sim */
+.toolbar{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.tool{flex:0 0 auto;font:inherit;font-size:.82rem;font-weight:500;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tool svg{width:22px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
+.tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:8px 10px}
+.controls select{font:inherit;font-size:.85rem;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.screen{background:var(--screen);border-radius:12px;overflow:hidden;position:relative}
+#simCanvas{display:block;width:100%;touch-action:none;cursor:crosshair}
+.banner{position:absolute;left:10px;right:10px;top:10px;background:#5A1E14;color:#FFD9CF;border-radius:8px;padding:6px 10px;font-size:.82rem}
+.hint{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+.caption{font-size:.88rem;margin:10px 0 0;padding:10px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line)}
+.panel{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 16px}
+.readout div small{display:block;font-family:var(--f-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.readout div b{font-family:var(--f-mono);font-weight:500;font-size:1.05rem;font-variant-numeric:tabular-nums}
+#graph{width:100%;height:110px;display:block;background:var(--screen);border-radius:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.8rem;color:var(--muted);margin-top:10px;align-items:center}
+.vbar{display:inline-block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,#4DABF7,#7C8B85,#FF6B4A);vertical-align:middle;margin:0 6px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#FFD43B;vertical-align:middle;margin-right:6px}
+.valform{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.valform input{font:inherit;font-family:var(--f-mono);width:8em;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.gl{font-family:var(--f-mono);font-size:.72rem;display:flex;gap:14px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Daily Bench</h1><span>EE fundamentals, one bench at a time</span></div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#today" id="tabToday">Today</a>
+      <a href="#sim" id="tabSim">Simulator</a>
+    </nav>
+  </header>
+
+  <section id="viewToday">
+    <div class="dayhead">
+      <div><div class="eyebrow" id="dateLabel"></div><h2>Today's four questions</h2></div>
+      <div class="stats">
+        <div class="stat"><b id="statStreak">0</b><small>day streak</small></div>
+        <div class="stat"><b id="statScore">0/4</b><small>today</small></div>
+        <div class="stat"><b id="statAll">0%</b><small>all-time</small></div>
+      </div>
+    </div>
+    <div class="meter" id="meter"><i></i><i></i><i></i><i></i></div>
+    <div class="qlist" id="qlist"></div>
+    <div id="doneBox"></div>
+    <div id="practiceWrap" hidden>
+      <div class="section-label eyebrow">Extra practice</div>
+      <div class="qlist" id="practiceList"></div>
+    </div>
+  </section>
+
+  <section id="viewSim" hidden>
+    <div class="toolbar" id="toolbar" role="toolbar" aria-label="Parts"></div>
+    <div class="controls">
+      <select id="presetSel" aria-label="Example circuits"></select>
+      <button class="btn small" id="runBtn">Pause</button>
+      <button class="btn small ghost" id="restartBtn">Restart</button>
+      <select id="speedSel" aria-label="Simulation speed">
+        <option value="1">Real time</option><option value="0.25">¼ speed</option><option value="0.05">1/20 speed</option><option value="0.005">1/200 speed</option>
+      </select>
+      <button class="btn small ghost" id="voltsBtn" aria-pressed="false">Show node voltages</button>
+      <button class="btn small ghost" id="clearBtn">Clear</button>
+    </div>
+    <div class="screen" id="screen">
+      <canvas id="simCanvas"></canvas>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+    <p class="hint" id="hint"></p>
+    <p class="caption" id="caption" hidden></p>
+    <div class="panel" id="panel"></div>
+    <div class="legend">
+      <span>Wire color = voltage: <span class="vbar"></span> negative · 0 V · positive</span>
+      <span><span class="dot"></span>Moving dots = conventional current (+ to −). Faster = more current.</span>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ---------------- storage ---------------- */
+const STORE_KEY="dailybench.v1";
+function loadStore(){try{const s=JSON.parse(localStorage.getItem(STORE_KEY)||"null");if(s&&s.days)return s;}catch(e){}return {days:{},missed:[],total:0,correct:0};}
+function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(store));}catch(e){}}
+let store=loadStore();
+
+/* ---------------- helpers ---------------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashStr(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+function shuffle(arr,rng){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function dateKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+const SI=[[1e9,"G"],[1e6,"M"],[1e3,"k"],[1,""],[1e-3,"m"],[1e-6,"µ"],[1e-9,"n"],[1e-12,"p"]];
+function fmtSI(x,unit){if(!isFinite(x))return "—";const ax=Math.abs(x);if(ax<1e-12)return "0 "+unit;
+  for(const [m,p] of SI){if(ax>=m*0.9995){const v=x/m;const s=Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(2);return (s.includes(".")?s.replace(/\.?0+$/,""):s)+" "+p+unit;}}
+  return (x/1e-12).toFixed(2)+" p"+unit;}
+function parseSI(s){const m=String(s).trim().replace(",",".").match(/^([-+]?\d*\.?\d+(?:e[-+]?\d+)?)\s*([pnuµmkKMG]?)/);if(!m)return NaN;
+  const mult={p:1e-12,n:1e-9,u:1e-6,"µ":1e-6,m:1e-3,k:1e3,K:1e3,M:1e6,G:1e9,"":1}[m[2]];return parseFloat(m[1])*mult;}
+
+/* ---------------- example circuits ----------------
+   spec rows: [type, x1,y1,x2,y2, value, (freq for AC | label)]
+   battery/AC: first point is the − terminal, second is +. diode/LED: first point is the anode. */
+const CIRCUITS={
+  divider:{name:"Voltage divider",sel:3,caption:"Battery 10 V across 10 kΩ over 5 kΩ. Tap each resistor: the voltage splits in proportion to resistance, while the current is the same in both.",
+    spec:[["v",2,8,2,2,10],["w",2,2,7,2],["r",7,2,7,5,10000],["r",7,5,7,8,5000],["w",7,8,2,8],["g",2,8]]},
+  series:{name:"Series string",sel:5,caption:"One path, so one current. Tap each resistor to compare the voltage drops: they add up to 9 V (KVL).",
+    spec:[["v",1,8,1,2,9],["w",1,2,3,2],["r",3,2,6,2,1000],["r",6,2,9,2,2000],["w",9,2,10,2],["r",10,2,10,8,3000],["w",10,8,1,8],["g",1,8]]},
+  parallel:{name:"Parallel branches",sel:2,caption:"Every branch sees the full 9 V. The 1 kΩ branch carries twice the current of the 2 kΩ branch, and the dots move twice as fast.",
+    spec:[["v",1,8,1,2,9],["w",1,2,10,2],["r",4,2,4,8,1000],["r",7,2,7,8,2000],["r",10,2,10,8,3000],["w",1,8,10,8],["g",1,8]]},
+  led:{name:"LED + current-limit resistor",sel:2,caption:"5 V, 300 Ω, red LED. The resistor drops about 3 V and sets roughly 10 mA. Tap the switch to toggle it, or tap the resistor and change it to 100 Ω or 1 kΩ.",
+    spec:[["v",2,8,2,2,5],["w",2,2,4,2],["r",4,2,7,2,300],["w",7,2,10,2],["led",10,2,10,5],["s",10,5,10,8,1],["w",10,8,2,8],["g",2,8]]},
+  rc:{name:"RC charging (τ = 1 s)",sel:5,caption:"10 kΩ × 100 µF = 1 s. Watch the capacitor reach 63% of 5 V after about one second, while the current starts high and decays to zero. Press Restart to discharge it and watch again. Open the switch mid-charge and the capacitor holds its voltage.",
+    spec:[["v",2,8,2,2,5],["w",2,2,3,2],["s",3,2,5,2,1],["r",5,2,8,2,10000],["w",8,2,10,2],["c",10,2,10,8,100e-6],["w",10,8,2,8],["g",2,8]]},
+  bridge:{name:"Wheatstone bridge",sel:5,caption:"Three 1 kΩ arms and one at 1.1 kΩ (a strained gauge). Turn on node voltages: the two midpoints differ by about 119 mV. Set the 1.1 kΩ back to 1 kΩ to balance it.",
+    spec:[["v",1,8,1,2,5],["w",1,2,9,2],["r",4,2,4,5,1000],["r",4,5,4,8,1000],["r",9,2,9,5,1000],["r",9,5,9,8,1100],["w",1,8,9,8],["g",1,8]]},
+  rectifier:{name:"Half-wave rectifier",sel:5,caption:"A 5 V, 1 Hz sine (slowed from 60 Hz so you can watch). The diode only conducts near the peaks; the capacitor carries the load in between. Delete the capacitor to see raw half-waves.",
+    spec:[["a",2,8,2,2,5,1],["w",2,2,3,2],["d",3,2,6,2],["w",6,2,10,2],["c",6,2,6,8,220e-6],["r",10,2,10,8,10000],["w",2,8,10,8],["g",2,8]]},
+  blank:{name:"Blank bench",sel:-1,caption:"",spec:[]}
+};
+
+/* ---------------- question bank ---------------- */
+const BANK=[
+// Fundamentals
+{id:"f1",cat:"Fundamentals",lvl:1,type:"num",q:"A 12 V supply is connected across a 4 kΩ resistor. How much current flows?",ans:3,unit:"mA",
+ ex:"Ohm's law: I = V / R = 12 V / 4000 Ω = 0.003 A = <b>3 mA</b>.",key:"V = I·R. Rearrange for whichever one you're missing."},
+{id:"f2",cat:"Fundamentals",lvl:1,type:"mc",circ:"series",q:"Three resistors are in series with a 9 V battery. Where is the current largest?",
+ ch:["It's the same through all three","Through the 3 kΩ resistor","Through the 1 kΩ resistor","Closest to the battery's + terminal"],a:0,
+ ex:"A series circuit has only one path, so the same current flows through every part: 9 V / 6 kΩ = 1.5 mA. What differs is the <b>voltage</b>. Each resistor drops I·R, so the 3 kΩ takes 4.5 V, the 2 kΩ takes 3 V and the 1 kΩ takes 1.5 V.",key:"Series: same current, voltages split."},
+{id:"f3",cat:"Fundamentals",lvl:1,type:"mc",circ:"parallel",q:"Three resistors are connected in parallel across a 9 V battery. What's the voltage across the 3 kΩ one?",
+ ch:["9 V","3 V","It depends on the other two resistors","1/3 of 9 V"],a:0,
+ ex:"Parallel branches connect to the same two nodes, so they all see the same <b>9 V</b>. The currents differ: 9 mA, 4.5 mA and 3 mA. The battery supplies the sum, 16.5 mA (KCL).",key:"Parallel: same voltage, currents split."},
+{id:"f4",cat:"Fundamentals",lvl:1,type:"num",q:"What is 2.2 kΩ in parallel with 3.3 kΩ?",ans:1320,unit:"Ω",
+ ex:"Product over sum: (2200 × 3300) / (2200 + 3300) = 7.26 M / 5.5 k = <b>1.32 kΩ</b>. Sanity check: a parallel combination is always smaller than the smallest resistor.",key:"R∥ = R1·R2 / (R1 + R2)"},
+{id:"f5",cat:"Fundamentals",lvl:1,type:"mc",q:"Kirchhoff's Current Law (KCL) says:",
+ ch:["The current flowing into a node equals the current flowing out","The voltages around any loop sum to zero","Current is the same everywhere in a circuit","Power in equals power out at each resistor"],a:0,
+ ex:"KCL is conservation of charge: charge can't pile up at a junction, so whatever flows in must flow out. It's the basis of nodal analysis, which is also how the simulator on this page solves circuits.",key:"KCL = charge conservation at a node."},
+{id:"f6",cat:"Fundamentals",lvl:1,type:"mc",q:"Walk around any closed loop of a circuit, adding up voltage rises and drops. The total is:",
+ ch:["Zero","The source voltage","Total current × total resistance","It depends on the direction you walk"],a:0,
+ ex:"Kirchhoff's Voltage Law is conservation of energy. In a divider, the battery's 10 V rise equals the 6.67 V + 3.33 V of drops across the resistors, so the loop sums to <b>zero</b>.",key:"KVL = energy conservation around a loop."},
+{id:"f7",cat:"Fundamentals",lvl:1,type:"num",q:"0.5 A flows through a 100 Ω resistor. How much power does it dissipate?",ans:25,unit:"W",
+ ex:"P = I²R = 0.25 × 100 = <b>25 W</b>. Equivalently V = 50 V and P = V·I = 25 W. A typical ¼ W resistor would burn up; this needs a large power resistor on a heatsink.",key:"P = V·I = I²R = V²/R"},
+{id:"f8",cat:"Fundamentals",lvl:2,type:"mc",q:"What's the most voltage you can put across a 1 kΩ, ¼ W resistor without exceeding its power rating?",
+ ch:["About 15.8 V","250 V","About 4 V","0.25 V"],a:0,
+ ex:"P = V²/R, so V = √(P·R) = √(0.25 × 1000) = √250 ≈ <b>15.8 V</b>. In practice designers derate to about 50%, which here means staying under roughly 11 V.",key:"V_max = √(P_rated · R)"},
+{id:"f9",cat:"Fundamentals",lvl:1,type:"num",circ:"divider",q:"In this divider, what is the voltage at the midpoint (across the 5 kΩ resistor)?",ans:3.333,unit:"V",
+ ex:"V_out = V_in · R2 / (R1 + R2) = 10 × 5k / 15k = <b>3.33 V</b>. The current is 10 V / 15 kΩ = 0.667 mA, and 0.667 mA × 5 kΩ = 3.33 V gives the same answer.",key:"Divider: V_out = V_in · R_bottom / (R_top + R_bottom)"},
+{id:"f10",cat:"Fundamentals",lvl:2,type:"mc",circ:"divider",q:"You connect a 5 kΩ load across the bottom resistor of this divider. What happens to the midpoint voltage?",
+ ch:["It drops to 2 V","It stays at 3.33 V","It rises","It drops to 0 V"],a:0,
+ ex:"The load is in parallel with the 5 kΩ: 5k ∥ 5k = 2.5 kΩ. Now V = 10 × 2.5/12.5 = <b>2 V</b>. A divider is only accurate when the load is much larger than the divider resistors (≥10×). Otherwise, buffer it with an op-amp follower. Try it in the simulator: drag a 5 kΩ resistor across the bottom one.",key:"Loading a divider pulls its output down."},
+{id:"f11",cat:"Fundamentals",lvl:1,type:"mc",q:"An ideal voltmeter has ___ input resistance; an ideal ammeter has ___.",
+ ch:["Infinite; zero","Zero; infinite","Infinite; infinite","Zero; zero"],a:0,
+ ex:"A voltmeter goes in <b>parallel</b>, so it shouldn't draw current (infinite R). An ammeter goes in <b>series</b>, so it shouldn't drop voltage (zero R). Put a DMM on its amps setting directly across a supply and you've built a short: that's how meter fuses blow.",key:"Voltmeter in parallel, ammeter in series."},
+{id:"f12",cat:"Fundamentals",lvl:2,type:"mc",q:"Thévenin's theorem lets you replace any linear two-terminal network with:",
+ ch:["A voltage source in series with one resistor","A current source in series with one resistor","A single resistor","A voltage source in parallel with a resistor"],a:0,
+ ex:"V_th is the open-circuit voltage at the terminals. R_th is the resistance looking back in with sources zeroed (voltage sources shorted, current sources opened). The Norton equivalent is the same idea using a current source in parallel with R.",key:"Any linear network → V_th + R_th in series."},
+{id:"f13",cat:"Fundamentals",lvl:2,type:"num",q:"What is the Thévenin resistance at the midpoint of a divider made of two 10 kΩ resistors fed by an ideal voltage source?",ans:5000,unit:"Ω",
+ ex:"Zero the source (replace it with a short). From the midpoint, both resistors now go to ground, which puts them in parallel: 10k ∥ 10k = <b>5 kΩ</b>. V_th is half the supply. So the divider behaves like a half-supply source with 5 kΩ in series, which explains why loads pull it down.",key:"R_th: short V-sources, then look in."},
+{id:"f14",cat:"Sensors",lvl:2,type:"num",circ:"bridge",q:"This Wheatstone bridge runs from 5 V. One arm, a strain gauge, has shifted to 1.1 kΩ. What's the differential voltage between the two midpoints?",ans:119,unit:"mV",tol:0.04,
+ ex:"Left midpoint: 5 × 1k/2k = 2.500 V. Right midpoint: 5 × 1.1k/2.1k = 2.619 V. Difference ≈ <b>119 mV</b>. Notice it's a small signal sitting on a 2.5 V common-mode level, which is why bridges feed instrumentation amps.",key:"Bridge output = difference of two dividers."},
+{id:"f15",cat:"Sensors",lvl:2,type:"mc",q:"Why are resistive sensors (strain gauges, RTDs) usually read with a Wheatstone bridge instead of measuring their resistance directly?",
+ ch:["The output is near zero at balance, so tiny resistance changes become a measurable differential voltage","It increases the sensor's resistance change","It removes the need for an excitation voltage","It converts resistance into frequency"],a:0,
+ ex:"A 0.1% change on a 2.5 V signal is hard to see. The bridge subtracts the large common part, leaving only the change. It's also ratiometric: if the excitation drifts, both halves drift together. A dummy gauge in an adjacent arm can cancel temperature effects.",key:"Bridges turn small ΔR into a clean differential signal."},
+// Diodes
+{id:"d1",cat:"Diodes",lvl:1,type:"mc",q:"What is the basic job of a diode?",
+ ch:["Let current flow one way (anode → cathode) and block it the other way","Store charge","Hold current at a fixed value","Step up a voltage"],a:0,
+ ex:"Forward biased (anode more positive by ~0.6–0.7 V for silicon), it conducts. Reverse biased, it blocks. Common uses: rectifying AC to DC, reverse-polarity protection, clamping inductive spikes (flyback), and OR-ing two supplies.",key:"Diode = one-way valve for current."},
+{id:"d2",cat:"Diodes",lvl:1,type:"mc",q:"Typical forward voltage of a silicon PN diode at moderate current?",
+ ch:["About 0.6–0.7 V","About 0.2–0.3 V","About 1.8–2 V","About 5 V"],a:0,
+ ex:"Silicon PN: ~0.6–0.7 V. Schottky: ~0.2–0.45 V. Red LED: ~1.8–2.0 V. Blue/white LED: ~2.8–3.3 V. Vf rises slowly (logarithmically) with current and falls by about 2 mV/°C, which is why a diode junction can work as a temperature sensor.",key:"Si ≈ 0.7 V, Schottky ≈ 0.3 V, red LED ≈ 2 V."},
+{id:"d3",cat:"Diodes",lvl:1,type:"num",circ:"led",q:"A red LED (Vf ≈ 2.0 V) runs from 5 V. What series resistor gives 10 mA?",ans:300,unit:"Ω",
+ ex:"The resistor takes whatever voltage the LED doesn't: 5 − 2 = 3 V. R = 3 V / 0.010 A = <b>300 Ω</b>. You'd pick the nearest standard value up, 330 Ω (≈9 mA). Never connect an LED straight to a supply: its current rises exponentially with voltage.",key:"R = (V_supply − V_f) / I_LED"},
+{id:"d4",cat:"Diodes",lvl:2,type:"mc",q:"Why is a diode placed across a relay coil (in parallel, reverse-biased)?",
+ ch:["To clamp the voltage spike when the coil is switched off","To make the relay turn on faster","To protect against reverse supply polarity only","To reduce the coil's holding current"],a:0,
+ ex:"An inductor resists changes in current (V = L·di/dt). When the transistor turns off, the coil tries to keep current flowing and the voltage spikes to hundreds of volts, which can kill the transistor. The flyback diode gives that current a loop to decay through, clamping the spike to ~0.7 V above the supply.",key:"Inductive load + switch → add a flyback diode."},
+{id:"d5",cat:"Diodes",lvl:2,type:"mc",q:"A Zener diode is normally operated:",
+ ch:["In reverse breakdown, holding a near-constant voltage","Forward biased, as a rectifier","Forward biased, as a light source","Reverse biased below breakdown, as a capacitor"],a:0,
+ ex:"A Zener is designed to break down at a specific reverse voltage (e.g. 5.1 V) without damage. With a series resistor setting its current, it makes a simple reference or clamp. TVS diodes use the same effect for surge protection.",key:"Zener = reverse-breakdown voltage clamp."},
+{id:"d6",cat:"Diodes",lvl:2,type:"mc",q:"A full-wave bridge rectifier runs from 60 Hz mains. What's the ripple frequency on the smoothing capacitor?",
+ ch:["120 Hz","60 Hz","30 Hz","180 Hz"],a:0,
+ ex:"Full-wave flips the negative half-cycles positive, so there are two peaks per cycle: <b>120 Hz</b>. A half-wave rectifier gives 60 Hz. More peaks per second means a smaller capacitor achieves the same ripple: ΔV ≈ I / (f_ripple · C).",key:"Full-wave ripple = 2 × line frequency."},
+{id:"d7",cat:"Diodes",lvl:2,type:"mc",q:"In a full-wave bridge rectifier, how many diode drops are in the current path during each half-cycle?",
+ ch:["Two","One","Four","None"],a:0,
+ ex:"Current goes out through one diode and returns through another, so the peak output is about V_peak − 1.4 V. That matters at low voltages, which is why low-voltage supplies use Schottky diodes or synchronous (MOSFET) rectification.",key:"Bridge: 2 diode drops (~1.4 V)."},
+{id:"d8",cat:"Diodes",lvl:1,type:"mc",q:"A diode is reverse biased below its breakdown voltage. To a first approximation it behaves like:",
+ ch:["An open circuit (tiny leakage plus a little capacitance)","A short circuit","A 0.7 V battery","A small resistor"],a:0,
+ ex:"Reverse biased, only nanoamps to microamps of leakage flow (more when hot, and much more for Schottkys). The depletion region acts like a small capacitor that shrinks as the reverse voltage grows. Varactor diodes are built to exploit that capacitance for tuning.",key:"Reverse biased ≈ open circuit."},
+{id:"d9",cat:"Diodes",lvl:2,type:"mc",circ:"rectifier",q:"In this half-wave rectifier, what is the capacitor doing?",
+ ch:["Holding the output up while the diode is off, smoothing the voltage","Blocking DC from the load","Setting the AC frequency","Limiting the diode's current"],a:0,
+ ex:"The diode only conducts near the top of each positive peak, which recharges the capacitor. For the rest of the cycle the capacitor supplies the load and its voltage sags (ripple). A bigger C or a lighter load means less sag. Open this one in the simulator, select the capacitor, and watch the sawtooth.",key:"Reservoir cap: charges at peaks, feeds the load between."},
+// Transistors
+{id:"t1",cat:"Transistors",lvl:1,type:"mc",q:"Which best describes how a BJT and a MOSFET are controlled?",
+ ch:["BJT: base current controls collector current. MOSFET: gate voltage controls drain current.","Both are controlled by gate/base current","BJT: base voltage with no current. MOSFET: gate current.","Both are controlled by the load voltage"],a:0,
+ ex:"A BJT needs continuous base current: I_C ≈ β·I_B. A MOSFET's gate is insulated, essentially a capacitor, so it draws no DC current. It still needs a burst of charge to switch quickly, which is why gate drivers exist.",key:"BJT = current-controlled, MOSFET = voltage-controlled."},
+{id:"t2",cat:"Transistors",lvl:1,type:"num",q:"A BJT with β = 100 has 50 µA of base current and is in the active region. What's the collector current?",ans:5,unit:"mA",
+ ex:"I_C = β · I_B = 100 × 50 µA = <b>5 mA</b>. Real β varies a lot (50–300 across parts and temperature), so good linear designs use emitter resistors and feedback to avoid depending on it.",key:"Active region: I_C = β·I_B"},
+{id:"t3",cat:"Transistors",lvl:2,type:"mc",q:"To switch a 12 V load with an N-channel MOSFET driven from a 3.3 V microcontroller, the simplest arrangement is:",
+ ch:["Low-side: source to ground, load between +12 V and the drain","High-side: drain to +12 V, load between source and ground","Load between gate and ground","Source to +12 V, load on the drain"],a:0,
+ ex:"What turns the FET on is V_GS, gate relative to <b>source</b>. Low-side, the source sits at 0 V, so 3.3 V on the gate gives V_GS = 3.3 V. High-side, the source rises toward 12 V when on, so you'd need a gate above 12 V (bootstrap driver) or a P-channel FET instead.",key:"N-FET low-side; P-FET (or a driver) high-side."},
+{id:"t4",cat:"Transistors",lvl:2,type:"mc",q:"Why put a resistor (e.g. 100 kΩ) from a MOSFET's gate to its source?",
+ ch:["So the gate can't float and turn the FET on when the driver is off or unpowered","To speed up switching","To limit drain current","To bias the body diode"],a:0,
+ ex:"The gate is a capacitor with nearly infinite resistance. During MCU reset or boot, the pin is often high-impedance, and noise or leakage can charge the gate and turn the load on. The pull-down holds it off. A separate small series gate resistor (10–100 Ω) is for damping ringing.",key:"Never let a MOSFET gate float."},
+{id:"t5",cat:"Transistors",lvl:1,type:"num",q:"A MOSFET with Rds(on) = 50 mΩ carries 4 A while fully on. How much power does it dissipate?",ans:0.8,unit:"W",
+ ex:"P = I² · R = 16 × 0.05 = <b>0.8 W</b>. Rds(on) also rises with temperature (often ~1.5× when hot), so check the thermal side: ΔT = P · θ_JA.",key:"Switch loss when on: P = I²·Rds(on)"},
+{id:"t6",cat:"Transistors",lvl:2,type:"mc",q:"A MOSFET datasheet lists Vgs(th) = 2 V. Will a 3.3 V gate drive turn it fully on?",
+ ch:["Not necessarily: Vgs(th) is where it barely starts conducting, so check Rds(on) at your gate voltage","Yes, anything above Vgs(th) means fully on","No, it needs exactly 2 V","Only at high temperature"],a:0,
+ ex:"Threshold is defined at a tiny current, e.g. 250 µA. To know if it's a good switch at 3.3 V, look for an Rds(on) spec at V_GS = 2.5 V or 3.3 V. Parts specified that way are sold as 'logic-level'. At 3.3 V, a standard FET may still be half on and get hot.",key:"Use Rds(on) @ your V_GS, not Vgs(th)."},
+{id:"t7",cat:"Transistors",lvl:2,type:"mc",q:"When a BJT used as a switch is 'saturated', what's true?",
+ ch:["V_CE drops to about 0.1–0.3 V and it acts like a closed switch","Collector current exactly equals β × base current","No base current flows","V_CE equals the supply voltage"],a:0,
+ ex:"In saturation the load limits the current, not the transistor, and I_C < β·I_B. Designers overdrive the base with I_B ≈ I_C/10 (a 'forced β' of 10) to guarantee saturation. Dissipation is then small: V_CE(sat) × I_C.",key:"Saturated BJT ≈ closed switch with ~0.2 V drop."},
+// Op-amps
+{id:"o1",cat:"Op-amps",lvl:1,type:"mc",q:"With negative feedback, the two 'golden rules' for analyzing an ideal op-amp are:",
+ ch:["No current flows into the inputs, and the output does whatever makes V+ equal V−","The output current is zero and V+ = 0","The inputs draw equal current and the output sits at mid-supply","The gain is 1 and the inputs are shorted"],a:0,
+ ex:"These two rules solve almost every op-amp circuit. In an inverting amp, V+ is grounded, so V− is a 'virtual ground'. The current through Rin must also flow through Rf, because none enters the input.",key:"No input current; V+ = V− (with negative feedback)."},
+{id:"o2",cat:"Op-amps",lvl:1,type:"num",q:"Non-inverting amplifier: Rf = 9 kΩ (output to −input), Rg = 1 kΩ (−input to ground). What's the gain?",ans:10,unit:"V/V",
+ ex:"G = 1 + Rf/Rg = 1 + 9 = <b>10</b>. The input goes into the high-impedance + pin, so it barely loads the source.",key:"Non-inverting: G = 1 + Rf/Rg"},
+{id:"o3",cat:"Op-amps",lvl:1,type:"num",q:"Inverting amplifier: Rin = 4.7 kΩ, Rf = 47 kΩ, Vin = +0.2 V. What is Vout?",ans:-2,unit:"V",
+ ex:"G = −Rf/Rin = −10, so Vout = <b>−2 V</b>. That needs a negative supply rail, or a mid-supply reference on a single supply. The input impedance is just Rin (4.7 kΩ) because V− is a virtual ground.",key:"Inverting: G = −Rf/Rin"},
+{id:"o4",cat:"Op-amps",lvl:1,type:"mc",q:"What's the point of a voltage follower (unity-gain buffer)?",
+ ch:["Very high input and low output impedance, so a weak source can drive a load without sagging","Doubling the voltage","Inverting the signal","Filtering high frequencies"],a:0,
+ ex:"Gain is 1, but the buffer isolates. The loaded divider problem (3.33 V dropping to 2 V) disappears when a follower sits between the divider and the load. Common before ADC inputs and for reference voltages.",key:"Follower = impedance converter, gain 1."},
+{id:"o5",cat:"Op-amps",lvl:2,type:"mc",q:"An op-amp with no feedback, comparing a signal against a reference, behaves as:",
+ ch:["A comparator: the output slams to one rail or the other","A unity-gain amplifier","An integrator","A precise linear amp with gain of 100,000"],a:0,
+ ex:"Open-loop gain is 10⁵–10⁶, so a millivolt of difference saturates the output. Dedicated comparators are faster and often open-drain. Add hysteresis (a little positive feedback) so noise near the threshold doesn't make the output chatter.",key:"No feedback → comparator; add hysteresis."},
+{id:"o6",cat:"Op-amps",lvl:2,type:"num",q:"An op-amp has a gain-bandwidth product of 1 MHz. At a closed-loop gain of 100, what's the approximate bandwidth?",ans:10,unit:"kHz",
+ ex:"BW ≈ GBW / gain = 1 MHz / 100 = <b>10 kHz</b>. If you need high gain and bandwidth together, split the gain across two stages.",key:"Bandwidth ≈ GBW / closed-loop gain"},
+{id:"o7",cat:"Op-amps",lvl:2,type:"mc",q:"An instrumentation amplifier is the usual choice for a bridge sensor's output because it has:",
+ ch:["High common-mode rejection and high input impedance on both inputs","Very high output current","A gain fixed at exactly 1","No need for a power supply"],a:0,
+ ex:"A bridge outputs millivolts of difference riding on ~2.5 V of common mode. An in-amp amplifies only the difference (high CMRR), doesn't load either side of the bridge, and typically sets its gain with one resistor.",key:"Small differential on big common mode → in-amp."},
+{id:"o8",cat:"Op-amps",lvl:1,type:"mc",q:"A 'rail-to-rail output' op-amp on a 0–5 V supply can swing its output:",
+ ch:["Close to 0 V and 5 V, within tens of mV depending on load","Exactly to 0 V and 5 V at any load","Beyond the supply rails","Only between about 1.5 V and 3.5 V"],a:0,
+ ex:"Even rail-to-rail parts lose some headroom, more as load current rises. Check the datasheet's V_OH/V_OL at your load. Older parts like the LM358 can't get closer than about 1.5 V to the top rail.",key:"Rail-to-rail ≈ near the rails, not at them."},
+// AC & reactive
+{id:"a1",cat:"AC & Reactive",lvl:1,type:"num",circ:"rc",q:"What's the time constant of this circuit: 10 kΩ charging a 100 µF capacitor?",ans:1,unit:"s",
+ ex:"τ = R·C = 10,000 × 0.0001 = <b>1 s</b>. Open it in the simulator and select the capacitor to watch it on the trace.",key:"τ = R·C"},
+{id:"a2",cat:"AC & Reactive",lvl:1,type:"mc",circ:"rc",q:"The capacitor charges through the resistor from 0 V toward 5 V. After one time constant, it's at about:",
+ ch:["63% (≈3.2 V)","50% (2.5 V)","37% (≈1.8 V)","100% (5 V)"],a:0,
+ ex:"V(t) = V_final · (1 − e^(−t/τ)). At t = τ, that's 1 − 1/e ≈ <b>63%</b>. After 3τ: 95%. After 5τ: 99.3%, which engineers treat as 'fully charged'. Discharging is the mirror image: down to 37% after one τ.",key:"1τ → 63%, 5τ → ~99%"},
+{id:"a3",cat:"AC & Reactive",lvl:2,type:"num",q:"What's the cutoff (−3 dB) frequency of an RC low-pass with R = 1 kΩ and C = 0.1 µF?",ans:1591.5,unit:"Hz",tol:0.03,
+ ex:"f_c = 1 / (2π·R·C) = 1 / (2π × 1000 × 1e−7) ≈ <b>1.59 kHz</b>. Above that, the output falls 20 dB per decade.",key:"f_c = 1 / (2πRC)"},
+{id:"a4",cat:"AC & Reactive",lvl:1,type:"mc",q:"In DC steady state, after everything settles, a capacitor acts like ___ and an inductor acts like ___.",
+ ch:["an open circuit; a short circuit","a short circuit; an open circuit","an open circuit; an open circuit","a resistor; a resistor"],a:0,
+ ex:"Once voltages stop changing, i = C·dv/dt = 0, so a capacitor passes no current (open). Once current stops changing, v = L·di/dt = 0, so an inductor drops no voltage (short). That's the fastest way to find DC bias points.",key:"DC: C = open, L = short."},
+{id:"a5",cat:"AC & Reactive",lvl:1,type:"mc",q:"As frequency goes up, a capacitor's reactance:",
+ ch:["Decreases","Increases","Stays the same","Becomes a negative resistance"],a:0,
+ ex:"X_C = 1/(2πfC): it falls as frequency rises, so capacitors pass high frequencies and block DC. An inductor is the opposite: X_L = 2πfL rises with frequency.",key:"Caps pass highs; inductors pass lows."},
+{id:"a6",cat:"AC & Reactive",lvl:1,type:"mc",q:"Why does every IC get a 0.1 µF capacitor right next to its power pin?",
+ ch:["To supply fast current spikes locally and shunt high-frequency noise to ground","To set the IC's clock frequency","To block DC from reaching the IC","To raise the supply voltage"],a:0,
+ ex:"Digital edges demand current in nanoseconds. The trace back to the regulator has inductance, so it can't deliver that fast and the local supply would dip. The decoupling cap is a tiny local reservoir. Keep its loop to the pin and ground short. Bulk caps (10 µF+) cover the slower demands.",key:"Decoupling: small cap, very close, short loop."},
+{id:"a7",cat:"AC & Reactive",lvl:2,type:"mc",q:"Which of these cannot change instantaneously?",
+ ch:["The current through an inductor (and the voltage across a capacitor)","The voltage across an inductor","The current through a capacitor","The voltage across a resistor"],a:0,
+ ex:"v = L·di/dt: an instant jump in inductor current would need infinite voltage. i = C·dv/dt: an instant jump in capacitor voltage would need infinite current. That's why caps smooth voltage, inductors smooth current, and switching off an inductor causes spikes.",key:"Inductor current and capacitor voltage are continuous."},
+{id:"a8",cat:"AC & Reactive",lvl:1,type:"num",q:"A sine wave peaks at 170 V. What's its RMS value?",ans:120.2,unit:"V",
+ ex:"V_rms = V_peak / √2 = 170 / 1.414 ≈ <b>120 V</b>, which is US mains. Peak-to-peak is 340 V. RMS is the DC value that would heat a resistor equally. The √2 factor only applies to sine waves.",key:"Sine: V_rms = V_pk / √2"},
+{id:"a9",cat:"AC & Reactive",lvl:1,type:"mc",q:"At a filter's −3 dB point, the output has fallen to what fraction of its passband level?",
+ ch:["≈70.7% of the amplitude (half the power)","50% of the amplitude (a quarter of the power)","≈30% of the amplitude","10% of the amplitude"],a:0,
+ ex:"−3 dB is half power. Since power ∝ V², the amplitude is 1/√2 ≈ 0.707. Handy dB values: −6 dB ≈ half amplitude, −20 dB = one tenth.",key:"−3 dB = 0.707× amplitude = ½ power"},
+{id:"a10",cat:"AC & Reactive",lvl:1,type:"num",q:"A voltage gain of 100× is how many dB?",ans:40,unit:"dB",
+ ex:"For voltage, dB = 20·log₁₀(100) = <b>40 dB</b>. For power ratios, use 10·log₁₀. Worth memorizing: ×2 ≈ 6 dB, ×10 = 20 dB, ×1000 = 60 dB.",key:"Voltage: dB = 20·log₁₀(ratio)"},
+// Power
+{id:"p1",cat:"Power",lvl:1,type:"num",q:"A linear regulator outputs 5 V at 0.5 A from a 12 V input. How much power does it turn into heat?",ans:3.5,unit:"W",
+ ex:"A linear regulator drops the difference across itself at the full load current: (12 − 5) × 0.5 = <b>3.5 W</b>. That's only 42% efficient and needs a real heatsink. For a drop this large, use a buck converter.",key:"Linear reg loss = (Vin − Vout) · I"},
+{id:"p2",cat:"Power",lvl:1,type:"mc",q:"A buck converter ___ voltage and a boost converter ___ voltage.",
+ ch:["steps down; steps up","steps up; steps down","inverts; doubles","regulates AC; regulates DC"],a:0,
+ ex:"Both switch an inductor rapidly and typically reach 85–95% efficiency. The cost is switching ripple and EMI. Sensitive analog parts (sensor front ends, ADC references) often get a buck followed by a low-noise LDO.",key:"Buck ↓, boost ↑, both switch an inductor."},
+{id:"p3",cat:"Power",lvl:2,type:"mc",q:"An LDO regulator's 'dropout voltage' is:",
+ ch:["The minimum input-minus-output difference it needs to keep regulating","Its output voltage with no load","The drop across the output capacitor","The voltage at which it shuts down from heat"],a:0,
+ ex:"A 3.3 V LDO with 200 mV dropout needs at least 3.5 V in. Below that, the output just follows the input minus the dropout. This matters for battery designs: a Li-ion cell sags to ~3.3 V near empty.",key:"V_in ≥ V_out + V_dropout"},
+{id:"p4",cat:"Power",lvl:2,type:"num",q:"An ideal buck converter steps 12 V down to 3.3 V. What duty cycle does it run at?",ans:27.5,unit:"%",tol:0.03,
+ ex:"For an ideal buck, D = V_out / V_in = 3.3 / 12 = <b>27.5%</b>. For a boost, V_out = V_in / (1 − D).",key:"Buck: D = Vout / Vin"},
+{id:"p5",cat:"Power",lvl:1,type:"num",q:"A 2000 mAh battery powers a device that draws 100 mA. Roughly how many hours will it last?",ans:20,unit:"h",
+ ex:"2000 mAh / 100 mA = <b>20 h</b> ideally. Plan for 70–80% of that in practice (temperature, aging, cutoff voltage). In low-power sensor designs, the sleep current usually decides battery life.",key:"Hours ≈ capacity (mAh) / load (mA)"},
+{id:"p6",cat:"Power",lvl:1,type:"mc",q:"Why add a fuse or PTC in series with a power input?",
+ ch:["To open the circuit if current exceeds a safe level, such as during a short","To smooth voltage ripple","To regulate the voltage","To block reverse voltage"],a:0,
+ ex:"It protects the wiring and the source from a fault downstream. A fuse blows once. A PTC (resettable) heats up, its resistance jumps, and it recovers after the fault clears. Reverse polarity needs a diode or MOSFET instead.",key:"Fuse/PTC = overcurrent protection."},
+// Digital & mixed
+{id:"g1",cat:"Digital & ADC",lvl:1,type:"mc",q:"Why do I²C lines need pull-up resistors?",
+ ch:["Devices only pull the lines low (open-drain); the resistor pulls them high when nobody drives","To limit current into the microcontroller","To terminate reflections at high speed","To set the bus clock frequency"],a:0,
+ ex:"Open-drain lets any device pull the line low without fighting another device driving high. Typical values are 2.2–10 kΩ. Too large and the rising edge is slow (R × bus capacitance). Too small and devices can't pull the line low enough.",key:"Open-drain needs a pull-up."},
+{id:"g2",cat:"Digital & ADC",lvl:1,type:"num",q:"A 12-bit ADC uses a 3.3 V reference. What's one LSB?",ans:0.806,unit:"mV",
+ ex:"3.3 V / 2¹² = 3.3 / 4096 ≈ <b>0.806 mV</b>. That's the smallest step it can resolve. Noise and reference accuracy usually limit you before resolution does.",key:"LSB = V_ref / 2ᴺ"},
+{id:"g3",cat:"Digital & ADC",lvl:1,type:"mc",q:"A signal has content up to 1 kHz. What's the minimum sample rate to avoid aliasing?",
+ ch:["More than 2 kHz","1 kHz","500 Hz","Any rate works; aliasing only affects audio"],a:0,
+ ex:"Nyquist: sample at more than twice the highest frequency present. Frequencies above half the sample rate fold back as false lower frequencies. In practice, sample 5–10× higher and filter first.",key:"f_s > 2 · f_max"},
+{id:"g4",cat:"Digital & ADC",lvl:2,type:"mc",q:"Where does the anti-aliasing filter go?",
+ ch:["Before the ADC, in the analog domain","After the ADC, in software","On the reference pin","Only after a DAC"],a:0,
+ ex:"Once a high frequency has aliased into the band you care about, it looks exactly like a real signal and no digital filter can separate it. So you remove it before sampling, often with a simple RC at the ADC input.",key:"Filter before you sample."},
+{id:"g5",cat:"Digital & ADC",lvl:1,type:"num",q:"A 10-bit ADC with a 5 V reference reads 512. Roughly what voltage is that?",ans:2.5,unit:"V",
+ ex:"V = code / 2ᴺ × V_ref = 512 / 1024 × 5 = <b>2.5 V</b>, half scale.",key:"V = code / 2ᴺ · V_ref"},
+{id:"g6",cat:"Digital & ADC",lvl:1,type:"mc",q:"Why do mechanical push-buttons need debouncing?",
+ ch:["The contacts bounce for a few ms, creating several edges for one press","They draw too much current","They invert the logic level","They need time to charge an internal capacitor"],a:0,
+ ex:"Metal contacts physically bounce, producing a burst of transitions. Fix it in hardware (RC filter plus a Schmitt-trigger input) or in software (ignore changes for 10–20 ms after the first edge).",key:"One press ≠ one edge, unless you debounce."},
+{id:"g7",cat:"Digital & ADC",lvl:1,type:"mc",q:"What happens when a CMOS input pin is left floating?",
+ ch:["It drifts between logic levels, toggles randomly and can draw extra current","It reads a solid 0","It reads a solid 1","Nothing; CMOS inputs default high"],a:0,
+ ex:"A CMOS input is just a gate capacitance, so it picks up whatever is nearby. Hovering mid-rail turns both input transistors partly on, which wastes current and can oscillate. Tie unused inputs to a rail, or enable the pin's internal pull-up/down.",key:"Never leave CMOS inputs floating."},
+// Measurement
+{id:"m1",cat:"Sensors",lvl:1,type:"mc",q:"Why does a 4–20 mA sensor loop use 4 mA, not 0 mA, as the bottom of its range?",
+ ch:["So 0 mA means a fault (e.g. a broken wire) and the sensor has current to power itself","Because 0 mA is unsafe","To reduce cable resistance","Because ADCs can't read zero"],a:0,
+ ex:"A 'live zero' separates 'reading is minimum' from 'loop is dead'. A two-wire transmitter also runs on that 4 mA. Current loops ignore wire resistance, because the same current flows everywhere in a series loop, so they work over long cable runs.",key:"4 mA live zero = fault detection + power."},
+{id:"m2",cat:"Sensors",lvl:1,type:"num",q:"A 4–20 mA loop is read across a 250 Ω resistor. What voltage do you see at 12 mA?",ans:3,unit:"V",
+ ex:"V = I·R = 0.012 × 250 = <b>3 V</b>. The full range maps to 1–5 V, and 12 mA is mid-scale.",key:"250 Ω turns 4–20 mA into 1–5 V."},
+{id:"m3",cat:"Sensors",lvl:1,type:"num",q:"A 0.1 Ω shunt resistor carries 2 A. What voltage appears across it?",ans:200,unit:"mV",
+ ex:"V = 2 × 0.1 = <b>200 mV</b>, and it dissipates 0.4 W, so size the part for that. Low-side shunts are easy to read but lift the load's ground. High-side shunts need a current-sense amp that handles the common-mode voltage.",key:"Shunt: V = I·R, keep R small."},
+{id:"m4",cat:"Sensors",lvl:1,type:"mc",q:"What happens to an NTC thermistor's resistance as temperature rises?",
+ ch:["It decreases","It increases","It stays constant until a threshold","It oscillates"],a:0,
+ ex:"NTC means Negative Temperature Coefficient. The curve is strongly nonlinear (modeled with the Beta or Steinhart–Hart equation). RTDs like the Pt100 go the other way, rising about 0.385 Ω/°C, much more linear but with a far smaller change.",key:"NTC: hotter → lower R. RTD: hotter → higher R."},
+{id:"m5",cat:"Sensors",lvl:2,type:"mc",q:"Why use 4-wire (Kelvin) sensing to measure a low resistance?",
+ ch:["Current flows on one pair of wires and voltage is measured on a separate pair, so lead resistance adds no error","It doubles the test current","It cancels thermal noise","It allows AC measurement"],a:0,
+ ex:"With 2 wires, you also measure the leads and contacts, which can be larger than a milliohm-level part. The voltage pair carries almost no current, so it has almost no I·R drop. The same idea is used for RTDs, current shunts and remote-sense regulators.",key:"Kelvin: separate force and sense paths."},
+{id:"m6",cat:"Sensors",lvl:2,type:"mc",q:"Why do oscilloscope probes usually sit on 10×?",
+ ch:["They present ~10 MΩ and much less capacitance, so they load the circuit less","They make the signal 10× bigger","They add 10× bandwidth gain","They filter out DC"],a:0,
+ ex:"A 1× probe puts ~1 MΩ and ~100 pF on your node, which can slow edges or change a high-impedance circuit. The trade-off is that 10× divides the signal by ten, so for tiny signals 1× can be better. Compensate the probe on the scope's square-wave output.",key:"10× probe = less loading, less signal."},
+{id:"m7",cat:"Sensors",lvl:2,type:"mc",q:"A 'ground loop' causes trouble because:",
+ ch:["Two grounds at different potentials let current flow through the shield/ground path, adding noise or offset","Ground wires form an inductor that blocks DC","It shorts the supply","It makes the oscilloscope ground float"],a:0,
+ ex:"If two pieces of equipment are grounded at different points, the small voltage between those points drives current through your signal's ground, and that shows up as hum or offset. Fixes: single-point grounding, differential measurement, or isolation.",key:"Ground isn't one voltage everywhere."},
+{id:"m8",cat:"Sensors",lvl:2,type:"mc",q:"You clip a mains-powered scope's ground lead to a point that isn't at earth potential. What happens?",
+ ch:["You short that point to earth through the scope, which can destroy parts or the probe","The scope automatically measures differentially","Nothing; the probe ground is isolated","The trace just inverts"],a:0,
+ ex:"On a normal bench scope, every probe ground clip is tied to earth through the power cord. Clip it onto a non-ground node (a high-side switch, a primary-side node) and you create a short. Use a differential probe, or measure two channels and subtract (A − B).",key:"Scope ground clip = earth. Clip carefully."}
+];
+const BANK_BY_ID=Object.fromEntries(BANK.map(q=>[q.id,q]));
+
+/* ================= SIMULATOR CORE ================= */
+const RW=1e-3, GMIN=1e-9;
+const DIODE={d:{Is:1e-14,n:1},led:{Is:1.5e-19,n:2}};
+const VT=0.025852;
+const NAMES={w:"Wire",r:"Resistor",v:"Battery",a:"AC source",c:"Capacitor",l:"Inductor",d:"Diode",led:"LED",s:"Switch",g:"Ground"};
+const UNITS={r:"Ω",v:"V",a:"V",c:"F",l:"H"};
+const DEFAULTS={r:1000,v:5,a:5,c:100e-6,l:1,s:1};
+let uid=1;
+function mkEl(t,x1,y1,x2,y2,v,extra){const e={id:uid++,t,a:[x1,y1],b:t==="g"?[x1,y1]:[x2,y2],v:v!=null?v:DEFAULTS[t],I:0,V:0,phase:0,vPrev:0,iPrev:0,vdLin:0};
+  if(t==="a")e.f=(typeof extra==="number")?extra:1; else if(typeof extra==="string")e.lab=extra; return e;}
+function fromSpec(spec){return spec.map(s=>s[0]==="g"?mkEl("g",s[1],s[2]):mkEl(s[0],s[1],s[2],s[3],s[4],s[5],s[6]));}
+const key=(p)=>p[0]+","+p[1];
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a;}
+// split wires that pass over another element's terminal, so they connect
+function normalize(els){
+  let changed=true,guard=0;
+  while(changed&&guard++<50){changed=false;
+    const terms=new Set();for(const e of els){terms.add(key(e.a));if(e.t!=="g")terms.add(key(e.b));}
+    for(let i=0;i<els.length;i++){const e=els[i];if(e.t!=="w")continue;
+      const dx=e.b[0]-e.a[0],dy=e.b[1]-e.a[1],g=gcd(dx,dy);if(g<2)continue;
+      for(let k=1;k<g;k++){const p=[e.a[0]+dx/g*k,e.a[1]+dy/g*k];
+        if(terms.has(key(p))){const w2=mkEl("w",p[0],p[1],e.b[0],e.b[1]);e.b=p;els.push(w2);changed=true;break;}}
+      if(changed)break;}
+  }
+  // drop zero-length and duplicate wires
+  const seen=new Set();
+  return els.filter(e=>{if(e.t==="g"){const k="g"+key(e.a);if(seen.has(k))return false;seen.add(k);return true;}
+    if(e.a[0]===e.b[0]&&e.a[1]===e.b[1])return false;
+    if(e.t==="w"){const k1="w"+key(e.a)+"|"+key(e.b),k2="w"+key(e.b)+"|"+key(e.a);if(seen.has(k1)||seen.has(k2))return false;seen.add(k1);}
+    return true;});
+}
+function buildNet(els){
+  const idx=new Map();let n=0;const gnd=new Set(els.filter(e=>e.t==="g").map(e=>key(e.a)));
+  let ref=null;
+  if(gnd.size===0){const src=els.find(e=>e.t==="v"||e.t==="a");if(src)ref=key(src.a);else{const f=els.find(e=>e.t!=="g");if(f)ref=key(f.a);}}
+  const isG=k=>gnd.has(k)||k===ref;
+  for(const e of els){for(const p of (e.t==="g"?[e.a]:[e.a,e.b])){const k=key(p);if(!idx.has(k))idx.set(k,isG(k)?-1:n++);}}
+  const vs=els.filter(e=>e.t==="v"||e.t==="a");vs.forEach((e,i)=>e.k=i);
+  return {idx,n,m:vs.length,ref:ref||(gnd.size?[...gnd][0]:null)};
+}
+function solveLinear(A,z,N){ // in-place gaussian elimination, partial pivoting
+  for(let c=0;c<N;c++){let p=c,mx=Math.abs(A[c*N+c]);
+    for(let r=c+1;r<N;r++){const v=Math.abs(A[r*N+c]);if(v>mx){mx=v;p=r;}}
+    if(mx<1e-13)return null;
+    if(p!==c){for(let k=0;k<N;k++){const t=A[c*N+k];A[c*N+k]=A[p*N+k];A[p*N+k]=t;}const t=z[c];z[c]=z[p];z[p]=t;}
+    const d=A[c*N+c];
+    for(let r=c+1;r<N;r++){const f=A[r*N+c]/d;if(f===0)continue;for(let k=c;k<N;k++)A[r*N+k]-=f*A[c*N+k];z[r]-=f*z[c];}}
+  const x=new Float64Array(N);
+  for(let r=N-1;r>=0;r--){let s=z[r];for(let k=r+1;k<N;k++)s-=A[r*N+k]*x[k];x[r]=s/A[r*N+r];}
+  return x;
+}
+function diodeIV(vd,t){const {Is,n}=DIODE[t],nvt=n*VT,vl=nvt*Math.log(1/Is);
+  if(vd<=vl){const e=Math.exp(vd/nvt);return [Is*(e-1),Is*e/nvt+GMIN];}
+  const g=1/nvt;return [1-Is+g*(vd-vl),g];}
+function pnjlim(vnew,vold,t){const {Is,n}=DIODE[t],nvt=n*VT,vcrit=nvt*Math.log(nvt/(Math.SQRT2*Is));
+  if(vnew>vcrit&&Math.abs(vnew-vold)>2*nvt){if(vold>0){const arg=1+(vnew-vold)/nvt;vnew=arg>0?vold+nvt*Math.log(arg):vcrit;}else vnew=nvt*Math.log(Math.max(vnew/nvt,1e-30));}
+  return vnew;}
+
+class Circuit{
+  constructor(els){this.set(els||[]);}
+  set(els){this.els=normalize(els);this.net=buildNet(this.els);this.x=null;this.t=0;this.error=null;}
+  rebuild(){this.els=normalize(this.els);this.net=buildNet(this.els);this.x=null;}
+  nodeV(k){const i=this.net.idx.get(k);if(i===undefined||i<0||!this.x)return 0;return this.x[i];}
+  step(dt){
+    const {idx,n,m}=this.net,N=n+m;if(N===0){this.error=null;return;}
+    const els=this.els,t=this.t+dt;
+    const ni=p=>idx.get(key(p));
+    const hasD=els.some(e=>e.t==="d"||e.t==="led");
+    let x=null;
+    for(let it=0;it<80;it++){
+      const A=new Float64Array(N*N),z=new Float64Array(N);
+      const G=(a,b,g)=>{if(a>=0)A[a*N+a]+=g;if(b>=0)A[b*N+b]+=g;if(a>=0&&b>=0){A[a*N+b]-=g;A[b*N+a]-=g;}};
+      const I=(a,b,i)=>{if(a>=0)z[a]-=i;if(b>=0)z[b]+=i;};
+      for(let i=0;i<n;i++)A[i*N+i]+=GMIN;
+      for(const e of els){if(e.t==="g")continue;const a=ni(e.a),b=ni(e.b);
+        switch(e.t){
+          case"w":G(a,b,1/RW);break;
+          case"s":G(a,b,e.v?1/RW:1e-10);break;
+          case"r":G(a,b,1/Math.max(e.v,1e-3));break;
+          case"c":{const g=e.v/dt;G(a,b,g);I(a,b,-g*e.vPrev);break;}
+          case"l":{const g=dt/e.v;G(a,b,g);I(a,b,e.iPrev);break;}
+          case"v":case"a":{const r=n+e.k,V=e.t==="v"?e.v:e.v*Math.sin(2*Math.PI*e.f*t);
+            if(b>=0){A[b*N+r]+=1;A[r*N+b]+=1;}if(a>=0){A[a*N+r]-=1;A[r*N+a]-=1;}z[r]=V;break;}
+          case"d":case"led":{const [id,gd]=diodeIV(e.vdLin,e.t);G(a,b,gd);I(a,b,id-gd*e.vdLin);break;}
+        }}
+      x=solveLinear(A,z,N);
+      if(!x){this.error="This circuit can't be solved. Usually that means two batteries are wired directly in parallel, or a battery is shorted by a closed loop of sources.";return;}
+      if(!hasD)break;
+      let conv=true;
+      for(const e of els){if(e.t!=="d"&&e.t!=="led")continue;const a=ni(e.a),b=ni(e.b);
+        const vd=(a>=0?x[a]:0)-(b>=0?x[b]:0);const lim=pnjlim(vd,e.vdLin,e.t);
+        if(Math.abs(lim-e.vdLin)>1e-7)conv=false;e.vdLin=lim;}
+      if(conv)break;
+    }
+    this.error=null;this.x=x;this.t=t;
+    for(const e of els){if(e.t==="g")continue;const a=ni(e.a),b=ni(e.b);
+      const V=(a>=0?x[a]:0)-(b>=0?x[b]:0);e.V=V;
+      switch(e.t){
+        case"w":e.I=V/RW;break;
+        case"s":e.I=V*(e.v?1/RW:1e-10);break;
+        case"r":e.I=V/Math.max(e.v,1e-3);break;
+        case"c":e.I=e.v/dt*(V-e.vPrev);e.vPrev=V;break;
+        case"l":e.I=dt/e.v*V+e.iPrev;e.iPrev=e.I;break;
+        case"v":case"a":e.I=-x[n+e.k];break;
+        case"d":case"led":{const [id,gd]=diodeIV(e.vdLin,e.t);e.I=id+gd*(V-e.vdLin);break;}
+      }}
+  }
+}
+
+/* ================= DRAWING ================= */
+const COL={bg:"#0E1A16",grid:"rgba(200,230,215,0.10)",part:"#E6F0EB",label:"#9FBCAF",wire:"#C9DCD3",dot:"#FFD43B",sel:"rgba(79,185,138,0.45)",cur:"#FFE58A",pos:[255,107,74],neg:[77,171,247],zero:[124,139,133]};
+function vColor(v,scale){const t=Math.max(-1,Math.min(1,v/scale)),c=t>=0?COL.pos:COL.neg,k=Math.abs(t);
+  const m=i=>Math.round(COL.zero[i]+(c[i]-COL.zero[i])*k);return `rgb(${m(0)},${m(1)},${m(2)})`;}
+const BODY={r:36,c:10,v:10,a:28,l:40,d:18,led:18,s:26,w:0};
+function elLabel(e){if(e.lab)return e.lab;switch(e.t){case"r":return fmtSI(e.v,"Ω");case"v":return fmtSI(e.v,"V");case"a":return fmtSI(e.v,"V")+" "+fmtSI(e.f,"Hz");case"c":return fmtSI(e.v,"F");case"l":return fmtSI(e.v,"H");}return "";}
+
+function drawCircuit(ctx,ckt,o){
+  const G=o.G,ox=o.ox,oy=o.oy,P=p=>[ox+p[0]*G,oy+p[1]*G];
+  const live=!!o.live;
+  // grid
+  if(o.grid){ctx.fillStyle=COL.grid;for(let x=0;x<o.cols;x++)for(let y=0;y<o.rows;y++){ctx.beginPath();ctx.arc(ox+x*G,oy+y*G,1.2,0,7);ctx.fill();}}
+  const vs=o.vScale||1;
+  const colA=e=>live?vColor(ckt.nodeV(key(e.a)),vs):COL.wire;
+  const colB=e=>live?vColor(ckt.nodeV(key(e.b)),vs):COL.wire;
+  // selection highlight
+  if(o.sel){const e=o.sel;const [ax,ay]=P(e.a),[bx,by]=P(e.b);ctx.strokeStyle=COL.sel;ctx.lineWidth=12;ctx.lineCap="round";ctx.beginPath();
+    if(e.t==="g"){ctx.arc(ax,ay+8,12,0,7);ctx.stroke();}else{ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();}}
+  ctx.lineCap="round";ctx.lineJoin="round";
+  for(const e of ckt.els){
+    const [ax,ay]=P(e.a),[bx,by]=P(e.b);
+    if(e.t==="g"){ctx.strokeStyle=live?vColor(0,vs):COL.wire;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax,ay+9);
+      ctx.moveTo(ax-9,ay+9);ctx.lineTo(ax+9,ay+9);ctx.moveTo(ax-5.5,ay+13);ctx.lineTo(ax+5.5,ay+13);ctx.moveTo(ax-2,ay+17);ctx.lineTo(ax+2,ay+17);ctx.stroke();continue;}
+    const L=Math.hypot(bx-ax,by-ay),ang=Math.atan2(by-ay,bx-ax);
+    ctx.save();ctx.translate(ax,ay);ctx.rotate(ang);ctx.lineWidth=2.2;
+    if(e.t==="w"){ctx.strokeStyle=colA(e);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(L,0);ctx.stroke();ctx.restore();continue;}
+    const body=Math.min(BODY[e.t],L-4),b0=(L-body)/2,b1=b0+body;
+    ctx.strokeStyle=colA(e);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(b0,0);ctx.stroke();
+    ctx.strokeStyle=colB(e);ctx.beginPath();ctx.moveTo(b1,0);ctx.lineTo(L,0);ctx.stroke();
+    let stroke=COL.part;
+    if(live){const gr=ctx.createLinearGradient(b0,0,b1,0);gr.addColorStop(0,colA(e));gr.addColorStop(1,colB(e));stroke=gr;}
+    ctx.strokeStyle=stroke;ctx.fillStyle=stroke;
+    switch(e.t){
+      case"r":{ctx.beginPath();ctx.moveTo(b0,0);const seg=body/12;for(let i=1;i<12;i+=2){ctx.lineTo(b0+seg*i,i%4===1?-6:6);}ctx.lineTo(b1,0);ctx.stroke();break;}
+      case"c":{ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(b0,-11);ctx.lineTo(b0,11);ctx.moveTo(b1,-11);ctx.lineTo(b1,11);ctx.stroke();break;}
+      case"v":{ctx.lineWidth=3.2;ctx.beginPath();ctx.moveTo(b0,-6);ctx.lineTo(b0,6);ctx.stroke();ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(b1,-13);ctx.lineTo(b1,13);ctx.stroke();
+        ctx.lineWidth=1.5;ctx.strokeStyle=COL.part;ctx.beginPath();const px=b1+6,py=-13;ctx.moveTo(px-3,py);ctx.lineTo(px+3,py);ctx.moveTo(px,py-3);ctx.lineTo(px,py+3);ctx.stroke();break;}
+      case"a":{const cx=(b0+b1)/2,r=body/2;ctx.beginPath();ctx.arc(cx,0,r,0,7);ctx.stroke();ctx.beginPath();for(let i=0;i<=20;i++){const u=i/20;const xx=cx-r*0.6+u*r*1.2,yy=-Math.sin(u*2*Math.PI)*r*0.4;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}ctx.stroke();
+        ctx.lineWidth=1.5;ctx.strokeStyle=COL.part;ctx.beginPath();const px=b1+6,py=-12;ctx.moveTo(px-3,py);ctx.lineTo(px+3,py);ctx.moveTo(px,py-3);ctx.lineTo(px,py+3);ctx.stroke();break;}
+      case"l":{ctx.beginPath();ctx.moveTo(b0,0);const n=4,w=body/n;for(let i=0;i<n;i++){ctx.arc(b0+w*i+w/2,0,w/2,Math.PI,0,false);}ctx.stroke();break;}
+      case"d":case"led":{
+        if(e.t==="led"&&live){const br=Math.max(0,Math.min(1,e.I/0.015));if(br>0.02){ctx.save();ctx.globalAlpha=0.25+0.6*br;const rg=ctx.createRadialGradient((b0+b1)/2,0,2,(b0+b1)/2,0,26);rg.addColorStop(0,"rgba(255,80,60,1)");rg.addColorStop(1,"rgba(255,80,60,0)");ctx.fillStyle=rg;ctx.beginPath();ctx.arc((b0+b1)/2,0,26,0,7);ctx.fill();ctx.restore();ctx.fillStyle=`rgba(255,${Math.round(120-60*br)},90,${0.4+0.6*br})`;ctx.beginPath();ctx.moveTo(b0,-9);ctx.lineTo(b0,9);ctx.lineTo(b1,0);ctx.closePath();ctx.fill();}}
+        ctx.beginPath();ctx.moveTo(b0,-9);ctx.lineTo(b0,9);ctx.lineTo(b1,0);ctx.closePath();ctx.stroke();ctx.beginPath();ctx.moveTo(b1,-9);ctx.lineTo(b1,9);ctx.stroke();
+        if(e.t==="led"){ctx.lineWidth=1.4;ctx.strokeStyle=COL.part;for(const off of [0,6]){ctx.beginPath();ctx.moveTo(b0+4+off,-11);ctx.lineTo(b0+10+off,-17);ctx.moveTo(b0+10+off,-17);ctx.lineTo(b0+6+off,-17);ctx.moveTo(b0+10+off,-17);ctx.lineTo(b0+10+off,-13);ctx.stroke();}}
+        break;}
+      case"s":{ctx.fillStyle=COL.part;ctx.beginPath();ctx.arc(b0,0,2.6,0,7);ctx.arc(b1,0,2.6,0,7);ctx.fill();ctx.strokeStyle=live?colA(e):COL.part;ctx.beginPath();ctx.moveTo(b0,0);
+        if(e.v)ctx.lineTo(b1,0);else ctx.lineTo(b1-3,-13);ctx.stroke();break;}
+    }
+    ctx.restore();
+  }
+  // junction dots
+  const cnt=new Map();for(const e of ckt.els){for(const p of (e.t==="g"?[e.a]:[e.a,e.b])){const k=key(p);cnt.set(k,(cnt.get(k)||0)+1);}}
+  for(const [k,c] of cnt){if(c<3)continue;const [x,y]=k.split(",").map(Number);ctx.fillStyle=live?vColor(ckt.nodeV(k),vs):COL.wire;ctx.beginPath();ctx.arc(ox+x*G,oy+y*G,3.6,0,7);ctx.fill();}
+  // current dots
+  if(live&&o.imax>0){ctx.fillStyle=COL.dot;
+    for(const e of ckt.els){if(e.t==="g")continue;const r=e.I/o.imax;if(Math.abs(r)<0.004)continue;
+      const [ax,ay]=P(e.a),[bx,by]=P(e.b),L=Math.hypot(bx-ax,by-ay),ux=(bx-ax)/L,uy=(by-ay)/L,sp=15;
+      let p0=((e.phase%sp)+sp)%sp;for(let p=p0;p<L;p+=sp){ctx.beginPath();ctx.arc(ax+ux*p,ay+uy*p,2.5,0,7);ctx.fill();}}}
+  // labels
+  ctx.font="500 11px 'IBM Plex Mono', ui-monospace, monospace";ctx.textBaseline="middle";
+  for(const e of ckt.els){if(e.t==="g"||e.t==="w")continue;
+    const [ax,ay]=P(e.a),[bx,by]=P(e.b),mx=(ax+bx)/2,my=(ay+by)/2,hor=Math.abs(bx-ax)>=Math.abs(by-ay);
+    const lab=elLabel(e);
+    const flip=!hor&&o.cols&&e.a[0]>=o.cols-3;
+    if(lab){ctx.fillStyle=COL.label;if(hor){ctx.textAlign="center";ctx.fillText(lab,mx,my-19);}else{ctx.textAlign=flip?"right":"left";ctx.fillText(lab,mx+(flip?-16:16),my-(flip&&live&&o.showI?8:0));}}
+    if(live&&o.showI&&Math.abs(e.I)>1e-9&&e.t!=="s"){ctx.fillStyle=COL.cur;const s=fmtSI(Math.abs(e.I),"A");if(hor){ctx.textAlign="center";ctx.fillText(s,mx,my+19);}else if(flip){ctx.textAlign="right";ctx.fillText(s,mx-16,my+8);}else{ctx.textAlign="right";ctx.fillText(s,mx-16,my);}}
+  }
+  if(live&&o.showV){ctx.textAlign="left";for(const [k] of cnt){const [x,y]=k.split(",").map(Number);const v=ckt.nodeV(k);ctx.fillStyle="#0E1A16";const s=fmtSI(v,"V");const w=ctx.measureText(s).width;
+    ctx.globalAlpha=0.75;ctx.fillRect(ox+x*G+5,oy+y*G-15,w+6,14);ctx.globalAlpha=1;ctx.fillStyle=vColor(v,vs)==="rgb(124,139,133)"?"#C9DCD3":vColor(v,vs);ctx.fillText(s,ox+x*G+8,oy+y*G-8);}}
+  if(o.selNode){const [x,y]=o.selNode.split(",").map(Number);ctx.strokeStyle="#4FB98A";ctx.lineWidth=2;ctx.beginPath();ctx.arc(ox+x*G,oy+y*G,8,0,7);ctx.stroke();}
+  if(o.preview){const p=o.preview;ctx.globalAlpha=0.55;drawCircuit(ctx,{els:[p],nodeV:()=>0},{G,ox,oy});ctx.globalAlpha=1;}
+}
+
+/* static schematic preview used by quiz cards */
+function drawPreview(canvas,spec){
+  const ckt={els:normalize(fromSpec(spec)),nodeV:()=>0};
+  let minX=99,minY=99,maxX=-99,maxY=-99;for(const e of ckt.els){for(const p of [e.a,e.b]){minX=Math.min(minX,p[0]);minY=Math.min(minY,p[1]);maxX=Math.max(maxX,p[0]);maxY=Math.max(maxY,p[1]);}}
+  const w=canvas.clientWidth||320,padX=60,G=Math.min(34,(w-padX*2)/Math.max(1,maxX-minX)),h=Math.round((maxY-minY)*G+56);
+  const dpr=window.devicePixelRatio||1;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.height=h+"px";
+  const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const ox=(w-(maxX-minX)*G)/2-minX*G,oy=24-minY*G;
+  drawCircuit(ctx,ckt,{G,ox,oy});
+}
+
+/* ================= SIM UI ================= */
+const canvas=document.getElementById("simCanvas"),ctx=canvas.getContext("2d");
+const circuit=new Circuit([]);
+let G=30,cols=12,rows=10,OX=15,OY=15;
+let tool="select",running=true,speed=1,showV=false,sel=null,selNode=null,preview=null,drag=null;
+let imaxDisp=1e-3,vScale=5,hist=[];
+const TOOLS=[
+ ["select","Select",'<path d="M6 2 L6 12 L9 9 L12 13"/>'],
+ ["w","Wire",'<path d="M1 7 H21"/>'],
+ ["r","Resistor",'<path d="M1 7 H5 L7 3 L9 11 L11 3 L13 11 L15 3 L17 7 H21"/>'],
+ ["v","Battery",'<path d="M1 7 H9 M9 4 V10 M13 1 V13 M13 7 H21"/>'],
+ ["a","AC source",'<circle cx="11" cy="7" r="5.5"/><path d="M1 7 H5.5 M16.5 7 H21 M8 7 Q9.5 4 11 7 T14 7"/>'],
+ ["c","Capacitor",'<path d="M1 7 H9 M9 2 V12 M13 2 V12 M13 7 H21"/>'],
+ ["l","Inductor",'<path d="M1 7 H4 A2.5 2.5 0 0 1 9 7 A2.5 2.5 0 0 1 14 7 A2.5 2.5 0 0 1 19 7 H21"/>'],
+ ["d","Diode",'<path d="M1 7 H7 M7 2 V12 L15 7 Z M15 2 V12 M15 7 H21"/>'],
+ ["led","LED",'<path d="M1 7 H7 M7 3 V11 L14 7 Z M14 3 V11 M14 7 H21 M15 2 L18 0"/>'],
+ ["s","Switch",'<path d="M1 7 H6 L15 2 M16 7 H21"/><circle cx="6" cy="7" r="1"/><circle cx="16" cy="7" r="1"/>'],
+ ["g","Ground",'<path d="M11 1 V7 M5 7 H17 M8 10 H14 M10 13 H12"/>'],
+ ["erase","Erase",'<path d="M4 3 L18 11 M18 3 L4 11"/>']];
+const tb=document.getElementById("toolbar");
+for(const [id,label,icon] of TOOLS){const b=document.createElement("button");b.className="tool";b.dataset.tool=id;b.setAttribute("aria-pressed",id===tool);
+  b.innerHTML=`<svg viewBox="0 0 22 14" aria-hidden="true">${icon}</svg>${label}`;b.onclick=()=>setTool(id);tb.appendChild(b);}
+function setTool(id){tool=id;for(const b of tb.children)b.setAttribute("aria-pressed",b.dataset.tool===id);updateHint();}
+function updateHint(){const h=document.getElementById("hint");
+  if(tool==="select")h.textContent="Tap a part to read its voltage and current. Tap a switch to flip it. Tap a junction to read its voltage.";
+  else if(tool==="erase")h.textContent="Tap a part to remove it.";
+  else if(tool==="g")h.textContent="Tap a dot to put ground (0 V reference) there.";
+  else h.textContent=`Drag from one grid dot to another to place a ${NAMES[tool].toLowerCase()}. Ends that land on the same dot are connected.`;}
+
+const presetSel=document.getElementById("presetSel");
+for(const [k,c] of Object.entries(CIRCUITS)){const o=document.createElement("option");o.value=k;o.textContent=c.name;presetSel.appendChild(o);}
+presetSel.onchange=()=>loadPreset(presetSel.value);
+function loadPreset(k){const c=CIRCUITS[k];presetSel.value=k;const els=fromSpec(c.spec);const target=c.sel>=0?els[c.sel]:null;circuit.set(els);sel=target&&circuit.els.includes(target)?target:null;selNode=null;hist=[];imaxDisp=1e-6;
+  const cap=document.getElementById("caption");cap.hidden=!c.caption;cap.textContent=c.caption;
+  // let RC and rectifier settle from zero visibly
+  buildPanel();}
+document.getElementById("runBtn").onclick=e=>{running=!running;e.target.textContent=running?"Pause":"Run";};
+document.getElementById("speedSel").onchange=e=>{speed=parseFloat(e.target.value);};
+document.getElementById("voltsBtn").onclick=e=>{showV=!showV;e.target.setAttribute("aria-pressed",showV);e.target.textContent=showV?"Hide node voltages":"Show node voltages";};
+document.getElementById("restartBtn").onclick=()=>{for(const e of circuit.els){e.vPrev=0;e.iPrev=0;e.vdLin=0;e.I=0;e.V=0;}circuit.x=null;circuit.t=0;hist=[];imaxDisp=1e-9;};
+document.getElementById("clearBtn").onclick=()=>loadPreset("blank");
+
+function resize(){const w=canvas.parentElement.clientWidth;G=Math.max(22,Math.min(34,Math.floor(w/11.5)));cols=Math.floor(w/G);rows=10;OX=(w-(cols-1)*G)/2;OY=G*0.6;
+  const h=Math.round((rows-1)*G+OY*2);const dpr=window.devicePixelRatio||1;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.height=h+"px";ctx.setTransform(dpr,0,0,dpr,0,0);}
+window.addEventListener("resize",()=>{resize();document.querySelectorAll("canvas.prev").forEach(c=>drawPreview(c,CIRCUITS[c.dataset.circ].spec));});
+
+function evtPt(ev){const r=canvas.getBoundingClientRect();return [ev.clientX-r.left,ev.clientY-r.top];}
+function gridOf(px){return [Math.max(0,Math.min(cols-1,Math.round((px[0]-OX)/G))),Math.max(0,Math.min(rows-1,Math.round((px[1]-OY)/G)))];}
+function hitEl(px){let best=null,bd=11;
+  for(const e of circuit.els){const ax=OX+e.a[0]*G,ay=OY+e.a[1]*G,bx=OX+e.b[0]*G,by=OY+e.b[1]*G;let d;
+    if(e.t==="g")d=Math.hypot(px[0]-ax,px[1]-(ay+9));
+    else{const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;let u=((px[0]-ax)*dx+(px[1]-ay)*dy)/L2;u=Math.max(0,Math.min(1,u));d=Math.hypot(px[0]-(ax+u*dx),px[1]-(ay+u*dy));
+      if(e.t!=="w")d-=3;} // prefer parts over wires
+    if(d<bd){bd=d;best=e;}}
+  return best;}
+canvas.addEventListener("pointerdown",ev=>{canvas.setPointerCapture(ev.pointerId);const px=evtPt(ev);drag={px,g:gridOf(px),moved:false};});
+canvas.addEventListener("pointermove",ev=>{if(!drag)return;const px=evtPt(ev);if(Math.hypot(px[0]-drag.px[0],px[1]-drag.px[1])>6)drag.moved=true;
+  if(drag.moved&&TOOLS.some(t=>t[0]===tool)&&!["select","erase","g"].includes(tool)){const g2=gridOf(px);preview=(g2[0]!==drag.g[0]||g2[1]!==drag.g[1])?mkEl(tool,drag.g[0],drag.g[1],g2[0],g2[1]):null;}});
+canvas.addEventListener("pointerup",ev=>{if(!drag)return;const px=evtPt(ev),g2=gridOf(px);const d=drag;drag=null;preview=null;
+  const placing=!["select","erase","g"].includes(tool);
+  if(placing&&d.moved&&(g2[0]!==d.g[0]||g2[1]!==d.g[1])){const e=mkEl(tool,d.g[0],d.g[1],g2[0],g2[1]);circuit.els.push(e);circuit.rebuild();sel=circuit.els.includes(e)?e:null;selNode=null;buildPanel();return;}
+  if(tool==="g"){circuit.els.push(mkEl("g",d.g[0],d.g[1]));circuit.rebuild();buildPanel();return;}
+  const hit=hitEl(px);
+  if(tool==="erase"){if(hit){circuit.els=circuit.els.filter(e=>e!==hit);circuit.rebuild();if(sel===hit)sel=null;buildPanel();}return;}
+  if(hit){if(hit.t==="s"&&sel===hit){hit.v=hit.v?0:1;}else if(hit.t==="s"&&tool==="select"){hit.v=hit.v?0:1;}sel=hit;selNode=null;buildPanel();return;}
+  const k=key(d.g);if(circuit.net.idx.has(k)&&Math.hypot(px[0]-(OX+d.g[0]*G),px[1]-(OY+d.g[1]*G))<14){selNode=k;sel=null;buildPanel();return;}
+  sel=null;selNode=null;buildPanel();});
+
+const panel=document.getElementById("panel");
+function buildPanel(){
+  if(sel&&!circuit.els.includes(sel))sel=null;
+  hist=[];
+  if(!sel&&!selNode){panel.innerHTML=`<div class="eyebrow">Inspector</div><div>Tap any part to see the voltage across it, the current through it and the power it dissipates, plus a live trace. Pick an example above to start, or build your own: a battery, a resistor and two wires make a complete loop.</div>`;return;}
+  if(selNode){panel.innerHTML=`<div class="eyebrow">Junction</div><div class="readout"><div><small>Voltage to ground</small><b id="rNode">—</b></div></div><canvas id="graph"></canvas><div class="gl"><span style="color:#FF8A65">■ node voltage</span></div>`;return;}
+  const e=sel,name=NAMES[e.t],hasVal=e.t in UNITS;
+  let html=`<div class="row" style="justify-content:space-between"><div><div class="eyebrow">Selected</div><h2>${name}${hasVal?" · "+elLabel(e):""}</h2></div><div class="row">`;
+  if(e.t==="s")html+=`<button class="btn small" id="pToggle">${e.v?"Open":"Close"} switch</button>`;
+  if(e.t==="v"||e.t==="a"||e.t==="d"||e.t==="led")html+=`<button class="btn small ghost" id="pFlip">Flip direction</button>`;
+  html+=`<button class="btn small ghost" id="pDel">Delete</button></div></div>`;
+  if(hasVal){html+=`<form class="valform" id="pForm"><label for="pVal">${e.t==="a"?"Amplitude":"Value"}</label><input id="pVal" value="${fmtSI(e.v,"").trim()}" autocomplete="off"><span class="unit">${UNITS[e.t]}</span>`;
+    if(e.t==="a")html+=`<label for="pFreq">Freq</label><input id="pFreq" value="${fmtSI(e.f,"").trim()}"><span class="unit">Hz</span>`;
+    html+=`<button class="btn small">Set</button><span class="hint" style="margin:0">Use k, M, m, u, n (e.g. 4.7k, 100u)</span></form>`;}
+  html+=`<div class="readout"><div><small>Voltage across</small><b id="rV">—</b></div><div><small>Current through</small><b id="rI">—</b></div><div><small>Power</small><b id="rP">—</b></div><div><small>End voltages</small><b id="rE">—</b></div></div>`;
+  html+=`<canvas id="graph"></canvas><div class="gl"><span style="color:#FF8A65">■ voltage across</span><span style="color:#FFD43B">■ current</span><span id="gScale"></span></div>`;
+  panel.innerHTML=html;
+  const q=id=>document.getElementById(id);
+  if(q("pToggle"))q("pToggle").onclick=()=>{e.v=e.v?0:1;buildPanel();};
+  if(q("pFlip"))q("pFlip").onclick=()=>{[e.a,e.b]=[e.b,e.a];e.vdLin=0;circuit.rebuild();buildPanel();};
+  q("pDel").onclick=()=>{circuit.els=circuit.els.filter(x=>x!==e);circuit.rebuild();sel=null;buildPanel();};
+  if(q("pForm"))q("pForm").onsubmit=ev=>{ev.preventDefault();const v=parseSI(q("pVal").value);if(isFinite(v)&&v>0||(e.t==="v"&&isFinite(v)))e.v=v;
+    if(e.t==="a"){const f=parseSI(q("pFreq").value);if(isFinite(f)&&f>0)e.f=f;}buildPanel();};
+}
+function updatePanel(){
+  const q=id=>document.getElementById(id);
+  if(selNode&&q("rNode")){const v=circuit.nodeV(selNode);q("rNode").textContent=fmtSI(v,"V");hist.push([v,0]);}
+  else if(sel&&q("rV")){const e=sel;const src=e.t==="v"||e.t==="a";q("rV").textContent=fmtSI(src?-e.V:e.V,"V")+(src?" (+ above −)":"");q("rI").textContent=fmtSI(Math.abs(e.I),"A");
+    const p=e.V*e.I;q("rP").textContent=(e.t==="v"||e.t==="a")?fmtSI(-p,"W")+" delivered":fmtSI(Math.abs(p),"W");
+    q("rE").textContent=fmtSI(circuit.nodeV(key(e.a)),"V")+" → "+fmtSI(circuit.nodeV(key(e.b)),"V");hist.push([e.V,e.I]);}
+  if(hist.length>300)hist.shift();
+  const gc=document.getElementById("graph");if(!gc)return;
+  const w=gc.clientWidth,h=110,dpr=window.devicePixelRatio||1;if(gc.width!==w*dpr){gc.width=w*dpr;gc.height=h*dpr;}
+  const g=gc.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  g.strokeStyle="rgba(200,230,215,0.12)";g.lineWidth=1;g.beginPath();g.moveTo(0,h/2);g.lineTo(w,h/2);g.stroke();
+  const mv=Math.max(1e-9,...hist.map(p=>Math.abs(p[0]))),mi=Math.max(1e-12,...hist.map(p=>Math.abs(p[1])));
+  const plot=(i,m,c)=>{g.strokeStyle=c;g.lineWidth=1.8;g.beginPath();hist.forEach((p,j)=>{const x=w-(hist.length-1-j)*(w/300),y=h/2-(p[i]/m)*(h/2-8);j?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();};
+  plot(0,mv,"#FF8A65");if(!selNode)plot(1,mi,"#FFD43B");
+  const gs=document.getElementById("gScale");if(gs)gs.textContent=`peak ${fmtSI(mv,"V")} / ${fmtSI(mi,"A")}`;
+}
+
+let last=performance.now(),acc=0;
+function frame(now){
+  const dtReal=Math.min(0.05,(now-last)/1000);last=now;
+  const simView=!document.getElementById("viewSim").hidden;
+  if(simView){
+    if(running){const adv=dtReal*speed,hmax=speed>=1?5e-4:Math.max(adv/4,1e-6);const steps=Math.min(80,Math.max(1,Math.ceil(adv/hmax)));for(let i=0;i<steps;i++)circuit.step(adv/steps);}
+    // scales
+    let im=0,vm=0;for(const e of circuit.els){if(e.t!=="g"&&e.t!=="w"&&e.t!=="s")im=Math.max(im,Math.abs(e.I));}
+    for(const e of circuit.els){if(e.t==="w"||e.t==="s")im=Math.max(im,Math.abs(e.I)*0.999);}
+    for(const k of circuit.net.idx.keys())vm=Math.max(vm,Math.abs(circuit.nodeV(k)));
+    imaxDisp=Math.max(im,imaxDisp*Math.pow(0.5,dtReal/1.5),1e-9);vScale=Math.max(vm,vScale*Math.pow(0.5,dtReal/2),0.5);
+    if(running)for(const e of circuit.els)e.phase+=110*(e.I/imaxDisp)*dtReal;
+    const ban=document.getElementById("banner");
+    const short=circuit.els.find(e=>Math.abs(e.I)>20);
+    if(circuit.error){ban.hidden=false;ban.textContent=circuit.error;}else if(short){ban.hidden=false;ban.textContent=`Short circuit: about ${fmtSI(Math.abs(short.I),"A")} is flowing. Something connects a source's terminals with almost no resistance.`;}else ban.hidden=true;
+    const w=canvas.width/(window.devicePixelRatio||1),h=canvas.height/(window.devicePixelRatio||1);
+    ctx.fillStyle=COL.bg;ctx.fillRect(0,0,w,h);
+    drawCircuit(ctx,circuit,{G,ox:OX,oy:OY,cols,rows,grid:true,live:true,imax:imaxDisp,vScale,sel,selNode,showV,showI:true,preview});
+    acc+=dtReal;if(acc>0.05){acc=0;updatePanel();}
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================= QUIZ UI ================= */
+const DAILY=4;
+const ORDER=shuffle(BANK.map(q=>q.id),mulberry32(20261122));
+function dayIndex(d){const a=new Date(d.getFullYear(),d.getMonth(),d.getDate()),b=new Date(2026,0,1);return Math.round((a-b)/86400000);}
+function todaysIds(){const di=dayIndex(new Date());const out=[];for(let k=0;k<DAILY;k++)out.push(ORDER[(((di*DAILY+k)%ORDER.length)+ORDER.length)%ORDER.length]);return out;}
+const TODAY=dateKey(new Date());
+function dayRec(k){return store.days[k]||(store.days[k]={});}
+function streak(){let s=0;const d=new Date();const done=k=>store.days[k]&&Object.keys(store.days[k]).length>=DAILY;
+  if(!done(dateKey(d)))d.setDate(d.getDate()-1);while(done(dateKey(d))){s++;d.setDate(d.getDate()-1);}return s;}
+function refreshStats(){const rec=store.days[TODAY]||{},ids=todaysIds();
+  document.getElementById("statStreak").textContent=streak();
+  document.getElementById("statScore").textContent=ids.filter(i=>rec[i]&&rec[i].ok).length+"/"+DAILY;
+  document.getElementById("statAll").textContent=store.total?Math.round(100*store.correct/store.total)+"%":"—";
+  const m=document.getElementById("meter").children;ids.forEach((id,i)=>{m[i].className=rec[id]?(rec[id].ok?"ok":"bad"):"";});
+  renderDone();}
+
+function choiceOrder(q){return shuffle(q.ch.map((_,i)=>i),mulberry32(hashStr(q.id)));}
+function record(q,ok,given,isDaily){
+  if(isDaily){const rec=dayRec(TODAY);if(rec[q.id])return;rec[q.id]={ok,given};}
+  store.total++;if(ok)store.correct++;
+  store.missed=store.missed.filter(i=>i!==q.id);if(!ok)store.missed.push(q.id);
+  saveStore();refreshStats();}
+function card(q,n,total,isDaily){
+  const el=document.createElement("article");el.className="q";
+  const lvl="●".repeat(q.lvl)+"○".repeat(3-q.lvl);
+  el.innerHTML=`<div class="q-meta"><span class="chip">${q.cat}</span><span class="lvl" title="Difficulty">${lvl}</span><span class="qn">${n?n+" / "+total:"practice"}</span></div><h3 class="q-text">${q.q}</h3>`;
+  if(q.circ){const fig=document.createElement("figure");fig.className="schem";fig.innerHTML=`<canvas class="prev" data-circ="${q.circ}"></canvas>`;
+    const b=document.createElement("button");b.className="btn small ghost";b.style.color="#7FD6AC";b.style.borderColor="#2F5C49";b.textContent="Open in simulator";b.onclick=()=>{loadPreset(q.circ);location.hash="sim";};
+    fig.appendChild(b);el.appendChild(fig);requestAnimationFrame(()=>drawPreview(fig.querySelector("canvas"),CIRCUITS[q.circ].spec));}
+  const res=document.createElement("div");res.className="result";res.hidden=true;
+  const prior=isDaily?(store.days[TODAY]||{})[q.id]:null;
+  const showResult=(ok,givenText)=>{res.hidden=false;res.className="result"+(ok?"":" no");
+    const correct=q.type==="mc"?q.ch[q.a]:(q.ans+" "+q.unit);
+    res.innerHTML=`<strong>${ok?"Correct.":"Not quite. The answer is "+correct+"."}</strong>${!ok&&givenText?`<p class="key">You answered: ${givenText}</p>`:""}<p>${q.ex}</p><p class="key">Key idea: ${q.key}</p>`;};
+  if(q.type==="mc"){const box=document.createElement("div");box.className="choices";const ord=choiceOrder(q);
+    ord.forEach((ci,pos)=>{const b=document.createElement("button");b.className="choice";b.innerHTML=`<span class="k">${"ABCD"[pos]}</span><span>${q.ch[ci]}</span>`;b.dataset.ci=ci;
+      b.onclick=()=>{const ok=ci===q.a;mark(ci);record(q,ok,ci,isDaily);showResult(ok,q.ch[ci]);};box.appendChild(b);});
+    const mark=given=>{for(const b of box.children){b.disabled=true;const ci=+b.dataset.ci;if(ci===q.a)b.classList.add("right");else if(ci===given)b.classList.add("wrong");}};
+    el.appendChild(box);if(prior){mark(prior.given);showResult(prior.ok,q.ch[prior.given]);}}
+  else{const f=document.createElement("form");f.className="numform";const iid="in-"+q.id+"-"+(isDaily?"d":Math.random().toString(36).slice(2,7));
+    f.innerHTML=`<label class="eyebrow" for="${iid}" style="width:100%">Your answer</label><input id="${iid}" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit">${q.unit}</span><button class="btn">Check</button>`;
+    const inp=f.querySelector("input"),btn=f.querySelector("button");
+    f.onsubmit=ev=>{ev.preventDefault();const v=parseFloat(inp.value.replace(",","."));if(!isFinite(v)){inp.focus();return;}
+      const tol=q.tol||0.02,ok=Math.abs(v-q.ans)<=Math.abs(q.ans)*tol+1e-9;inp.disabled=btn.disabled=true;record(q,ok,v,isDaily);showResult(ok,v+" "+q.unit);};
+    el.appendChild(f);if(prior){inp.value=prior.given;inp.disabled=btn.disabled=true;showResult(prior.ok,prior.given+" "+q.unit);}}
+  el.appendChild(res);return el;}
+function renderToday(){
+  const d=new Date();document.getElementById("dateLabel").textContent=d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  const list=document.getElementById("qlist");list.innerHTML="";todaysIds().forEach((id,i)=>list.appendChild(card(BANK_BY_ID[id],i+1,DAILY,true)));refreshStats();}
+function renderDone(){const box=document.getElementById("doneBox");const rec=store.days[TODAY]||{},ids=todaysIds();const n=ids.filter(i=>rec[i]).length;
+  if(n<DAILY){box.innerHTML="";return;}
+  const score=ids.filter(i=>rec[i].ok).length;const missed=store.missed.length;
+  box.innerHTML=`<div class="done" style="margin-top:16px"><h2>${score===DAILY?"Clean sweep.":score+" of "+DAILY+" today."} New questions tomorrow.</h2><div>Keep going with extra questions, or rebuild one of today's circuits in the simulator and change a value to see what moves.</div><div class="row"><button class="btn" id="morebtn">Another question</button>${missed?`<button class="btn ghost" id="missbtn">Retry a missed one (${missed})</button>`:""}<a class="btn ghost" href="#sim" style="text-decoration:none">Open simulator</a></div></div>`;
+  document.getElementById("morebtn").onclick=()=>addPractice(false);
+  const mb=document.getElementById("missbtn");if(mb)mb.onclick=()=>addPractice(true);}
+function addPractice(fromMissed){const wrap=document.getElementById("practiceWrap"),list=document.getElementById("practiceList");wrap.hidden=false;
+  const shown=new Set([...todaysIds(),...[...list.querySelectorAll("[data-qid]")].map(e=>e.dataset.qid)]);
+  let pool=fromMissed?store.missed.filter(i=>!shown.has(i)):BANK.map(q=>q.id).filter(i=>!shown.has(i));
+  if(!pool.length)pool=fromMissed?store.missed.slice():BANK.map(q=>q.id);if(!pool.length)return;
+  const id=pool[Math.floor(Math.random()*pool.length)];const c=card(BANK_BY_ID[id],0,0,false);c.dataset.qid=id;list.appendChild(c);c.scrollIntoView({behavior:"smooth",block:"start"});}
+
+/* ================= ROUTING ================= */
+function route(){const sim=location.hash==="#sim";document.getElementById("viewSim").hidden=!sim;document.getElementById("viewToday").hidden=sim;
+  document.getElementById("tabSim").toggleAttribute("aria-current",sim);document.getElementById("tabToday").toggleAttribute("aria-current",!sim);
+  if(sim){document.getElementById("tabSim").setAttribute("aria-current","page");resize();}else document.getElementById("tabToday").setAttribute("aria-current","page");
+  if(!sim)document.querySelectorAll("canvas.prev").forEach(c=>drawPreview(c,CIRCUITS[c.dataset.circ].spec));}
+window.addEventListener("hashchange",route);
+resize();loadPreset("led");setTool("select");renderToday();route();requestAnimationFrame(frame);
+</script>
