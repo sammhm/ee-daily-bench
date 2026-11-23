@@ -139,6 +139,7 @@ h4{font-family:var(--f-display);font-weight:700;font-size:.95rem;margin:0}
 .valform input{font:inherit;font-family:var(--f-mono);width:8em;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 .gl{font-family:var(--f-mono);font-size:.72rem;display:flex;flex-wrap:wrap;gap:4px 14px}
 .region{font-family:var(--f-mono);font-size:.78rem;padding:2px 8px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+@media (max-width:560px){.q{padding:16px 14px}.q .schem{margin-inline:-8px;padding:6px 4px}}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
 </style>
 
@@ -429,8 +430,8 @@ const CIRCUITS={
   meters:{g:"Measurement",name:"Meter loading",sel:9,caption:"A voltmeter is just a big resistor in parallel. Change the 10 MΩ meter to 10 kΩ and its reading drops.",
     spec:[["v",1,8,1,2,10],["w",1,2,3,2],["r",3,2,6,2,0.1,"ammeter"],["w",6,2,7,2],["r",7,2,7,5,10000],["r",7,5,7,8,10000],["w",7,8,1,8],["g",1,8],["w",7,5,10,5],["r",10,5,10,8,10e6,"voltmeter"],["w",10,8,7,8]]},
   thevenin:{g:"Basics",name:"Thévenin equivalent",caption:"Left: the real divider with a load. Right: its Thévenin equivalent (5 V and 5 kΩ). Change both loads to the same value: they always match.",
-    spec:[["v",1,8,1,2,10],["w",1,2,3,2],["r",3,2,3,5,10000],["r",3,5,3,8,10000],["w",3,8,1,8],["w",3,5,5,5],["r",5,5,5,8,5000,"load"],["w",5,8,3,8],["g",1,8],
-      ["v",7,8,7,2,5,"V_th"],["r",7,2,10,2,5000,"R_th"],["w",10,2,10,5],["r",10,5,10,8,5000,"load"],["w",10,8,7,8],["g",7,8]]},
+    spec:[["v",1,8,1,2,10],["w",1,2,3,2],["r",3,2,3,5,10000],["r",3,5,3,8,10000],["w",3,8,1,8],["w",3,5,6,5],["r",6,5,6,8,5000,"load"],["w",6,8,3,8],["g",1,8],
+      ["v",8,8,8,2,5,"V_th"],["r",8,2,11,2,5000,"R_th"],["w",11,2,11,5],["r",11,5,11,8,5000,"load"],["w",11,8,8,8],["g",8,8]]},
   bridge:{g:"Sensors",name:"Wheatstone bridge",sel:5,caption:"Three 1 kΩ arms and one at 1.1 kΩ (a strained gauge). Turn on node voltages: the midpoints differ by about 119 mV. Set the 1.1 kΩ back to 1 kΩ to balance it.",
     spec:[["v",1,8,1,2,5],["w",1,2,9,2],["r",4,2,4,5,1000],["r",4,5,4,8,1000],["r",9,2,9,5,1000],["r",9,5,9,8,1100],["w",1,8,9,8],["g",1,8]]},
   led:{g:"Diodes",name:"LED + current-limit resistor",sel:2,caption:"5 V, 300 Ω, red LED. The resistor drops about 3 V and sets roughly 10 mA. Tap the switch to toggle it, or change the resistor to 100 Ω or 1 kΩ.",
@@ -482,7 +483,7 @@ const CIRCUITS={
   groundLoop:{g:"Measurement",name:"Ground loop",sel:2,caption:"The sensor's ground is joined to the ADC's ground twice: by the ground wire and through earth, with 0.5 V between earth points. The loop current shifts the reading.",
     spec:[["v",2,7,2,3,1,"sensor"],["w",2,3,9,3],["r",9,3,9,7,10e6,"ADC input"],["g",9,7],["r",2,7,9,7,1,"ground wire"],["w",2,7,2,9],["v",2,9,6,9,0.5,"earth ΔV"],["r",6,9,9,9,1,"earth"],["w",9,9,9,7]]},
   scopeGnd:{g:"Measurement",name:"Scope ground clip mistake",caption:"The scope's ground clip is earth. Close the switch to clip it onto the +12 V node and see what happens.",
-    spec:[["v",2,8,2,2,12],["w",2,2,7,2],["r",7,2,7,5,100],["r",7,5,7,8,100],["w",7,8,2,8],["g",2,8],["s",7,2,10,2,0,"scope ground clip"],["w",10,2,10,8],["g",10,8]]},
+    spec:[["v",2,8,2,2,12],["w",2,2,7,2],["r",7,2,7,5,100],["r",7,5,7,8,100],["w",7,8,2,8],["g",2,8],["s",7,2,10,2,0,"scope clip"],["w",10,2,10,8],["g",10,8]]},
   blank:{g:"",name:"Blank bench",spec:[]}
 };
 
@@ -1105,7 +1106,7 @@ const BANK=[
  ex:"Every ground clip on a bench scope is earth.",key:"Scope ground clip = earth. Clip carefully.",
  steps:[S("On a mains-powered bench scope, every ground clip connects to earth through the power cord.",{hl:[6,7]}),
   S("If your circuit's ground is also earth, clipping onto any other node shorts that node to ground."),
-  S("Close the 'scope ground clip' switch: it connects +12 V straight to earth.",{hl:[6]})],
+  S("Close the 'scope clip' switch: it connects +12 V straight to earth.",{hl:[6]})],
  try:[{ask:"Close the clip switch. What happens?",ch:["A huge short-circuit current flows","The scope just reads 12 V"],a:0,set:[[6,"v",1]],then:"The simulator flags a short. In real life: blown traces, a damaged probe or a tripped breaker. Use a differential probe, or measure on two channels and subtract."}]},
 // ---------- Tap-the-schematic (reading circuits) ----------
 {id:"k1",cat:"Read the schematic",lvl:1,type:"tap",circ:"series",q:"Tap the resistor with the largest voltage across it.",ans:[5],
@@ -1166,6 +1167,79 @@ const BANK=[
   S("The 100 kΩ goes from the gate to ground. When the pin floats, it pulls the gate to 0 V and turns the FET off.",{hl:[8]})]}
 ];
 const BANK_BY_ID=Object.fromEntries(BANK.map(q=>[q.id,q]));
+/* ================= LABEL PLACEMENT =================
+   Every label tries a list of candidate spots around its part and takes the one that collides least with
+   other labels, wires, part bodies and the canvas edge. Plans are cached until the circuit or size changes. */
+const LFONT="500 11px 'IBM Plex Mono', ui-monospace, monospace",LH=13;
+function segRect(x1,y1,x2,y2,r){let t0=0,t1=1;const dx=x2-x1,dy=y2-y1;const p=[-dx,dx,-dy,dy],q=[x1-r.x0,r.x1-x1,y1-r.y0,r.y1-y1];
+  for(let i=0;i<4;i++){if(p[i]===0){if(q[i]<0)return false;}else{const t=q[i]/p[i];if(p[i]<0){if(t>t1)return false;if(t>t0)t0=t;}else{if(t<t0)return false;if(t<t1)t1=t;}}}return true;}
+function rectOv(a,b){const w=Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0),h=Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0);return w>0&&h>0?w*h:0;}
+function partHalfWidth(t){return t==="v"||t==="c"?13:t==="a"||t==="i"?14:DIODES[t]?(t==="led"?17:10):t==="s"?13:7;}
+function obstacles(ckt,P){const segs=[],rects=[];
+  for(const e of ckt.els){
+    if(e.t==="g"){const p=P(e.a);rects.push({x0:p[0]-10,y0:p[1]+2,x1:p[0]+10,y1:p[1]+18});continue;}
+    if(TRI[e.t]){for(const path of triLeads(e)){const pts=path.map(P);for(let i=1;i<pts.length;i++)segs.push([pts[i-1],pts[i]]);}
+      const [x,y]=e.o;const bb=e.t==="op"?[x+0.5,Math.min(e.a[1],e.b[1])-0.45,x+2.6,Math.max(e.a[1],e.b[1])+0.45]:[x+0.85,y-0.85,x+2.05,y+0.85];
+      const p0=P([bb[0],bb[1]]),p1=P([bb[2],bb[3]]);rects.push({x0:p0[0],y0:p0[1],x1:p1[0],y1:p1[1]});continue;}
+    const a=P(e.a),b=P(e.b);segs.push([a,b]);if(e.t==="w")continue;
+    const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1,ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L,hw=partHalfWidth(e.t),body=Math.min(BODY[e.t]||0,L-4)+(e.t==="v"||e.t==="a"?14:0);
+    const c=[(a[0]+b[0])/2,(a[1]+b[1])/2],ex=Math.abs(ux)*body/2+Math.abs(uy)*hw,ey=Math.abs(uy)*body/2+Math.abs(ux)*hw;
+    rects.push({x0:c[0]-ex,y0:c[1]-ey,x1:c[0]+ex,y1:c[1]+ey});}
+  return {segs,rects};}
+function labelLines(e){const full=elLabel(e);if(!full)return null;const lb=e.lab?e.lab.replace(/^[<>]/,""):"";
+  if(e.t==="a"&&!lb)return [fmtSI(e.v,"V"),fmtSI(e.f,"Hz")];
+  if(lb&&!lb.includes("?")&&full!==lb&&full.startsWith(lb+" "))return [lb,full.slice(lb.length+1)];return [full];}
+function placeScore(r,placed,obs,W,H,idx){let s=idx*2;
+  const out=Math.max(0,2-r.x0)+Math.max(0,r.x1-W+2)+Math.max(0,2-r.y0)+Math.max(0,r.y1-H+2);if(out>0)s+=5000+out*60;
+  for(const p of placed){const ov=rectOv(r,p);if(ov>0)s+=3000+ov*20;}
+  const ri={x0:r.x0-1.5,y0:r.y0-1.5,x1:r.x1+1.5,y1:r.y1+1.5};
+  for(const sg of obs.segs)if(segRect(sg[0][0],sg[0][1],sg[1][0],sg[1][1],ri))s+=400;
+  for(const q of obs.rects){const ov=rectOv(ri,q);if(ov>0)s+=400+ov*3;}
+  return s;}
+function pick(cands,w,h,placed,obs,W,H){let best=null,bs=Infinity;
+  cands.forEach((c,i)=>{const r={x0:c[0]-w/2,y0:c[1]-h/2,x1:c[0]+w/2,y1:c[1]+h/2};const s=placeScore(r,placed,obs,W,H,i);if(s<bs){bs=s;best=r;}});
+  placed.push(best);best.score=bs;return best;}
+function sideCands(a,b,w,h,gap,prefFirst){const hor=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]);const out=[];
+  const sides=hor?[-1,1]:[1,-1];if(prefFirst<0)sides.reverse();
+  for(const t of [0.5,0.32,0.68,0.18,0.82])for(const s of sides){const px=a[0]+(b[0]-a[0])*t,py=a[1]+(b[1]-a[1])*t;
+    out.push(hor?[px,py+s*(gap+h/2)]:[px+s*(gap+w/2),py]);}
+  for(const s of sides){const px=(a[0]+b[0])/2,py=(a[1]+b[1])/2;out.push(hor?[px,py+s*(gap+h/2+14)]:[px+s*(gap+w/2+12),py]);}
+  return out;}
+function planLabels(ctx,ckt,o,P,cnt){
+  const W=o.W||1e5,H=o.H||1e5,live=!!o.live;ctx.font=LFONT;const tw=s=>ctx.measureText(s).width;
+  const k=[W,H,o.G,o.ox,o.oy,live,!!o.showI,!!o.showV].join("|")+"#"+ckt.els.map(e=>e.t+terms(e).map(key).join(";")+(e.t==="g"||e.t==="w"?"":"="+elLabel(e))).join("/");
+  if(ckt._lblKey===k)return ckt._lblPlan;
+  const obs=obstacles(ckt,P),placed=[],plan=[];
+  const refI=tw("88.8 mA")+4,refV=tw("−8.88 V")+6;
+  const side=new Map();
+  for(const e of ckt.els){if(e.t==="g"||e.t==="w")continue;const lines=labelLines(e);if(!lines)continue;
+    const w=Math.max(...lines.map(tw))+4,h=lines.length*LH+2;let cands;
+    if(TRI[e.t]){const [x,y]=e.o;
+      if(e.t==="op"){const by=Math.max(e.a[1],e.b[1]),ty=Math.min(e.a[1],e.b[1]);cands=[P([x+1.3,by+0.95]),P([x+1.3,ty-0.95]),P([x+3.3,y+0.9]),P([x+3.3,y-0.9])];}
+      else cands=[P([x+1.3,y-1.4]),P([x+1.3,y+1.4]),P([x+3.2,y]),P([x-0.4,y-0.8])];}
+    else{const force=e.lab&&/^[<>]/.test(e.lab)?(e.lab[0]==="<"?-1:1):0;cands=sideCands(P(e.a),P(e.b),w,h,partHalfWidth(e.t)+3,force);}
+    const r=pick(cands,w,h,placed,obs,W,H);plan.push({kind:"v",e,lines,r});
+    if(!TRI[e.t]){const a=P(e.a),b=P(e.b),hor=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]),cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2,m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+      side.set(e,hor?(cy<m[1]?-1:1):(cx>m[0]?1:-1));}}
+  if(live&&o.showI)for(const e of ckt.els){if(e.t==="g"||e.t==="w"||e.t==="s"||TRI[e.t])continue;
+    const a=P(e.a),b=P(e.b),hor=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]);const sv=side.get(e);
+    const pref=sv==null?0:(hor?(sv<0?1:-1):(sv>0?-1:1));
+    const r=pick(sideCands(a,b,refI,LH+2,partHalfWidth(e.t)+3,hor?-pref:pref),refI,LH+2,placed,obs,W,H);if(r.score>=400)placed.pop();plan.push({kind:"i",e,r});}
+  if(live&&o.showV){const groups=[],seen=new Set();
+    for(const [kk] of cnt){if(seen.has(kk))continue;const g=wireGroup(ckt.els,kk);g.forEach(x=>seen.add(x));
+      let best=kk,bc=-1;for(const x of g){const c=cnt.get(x)||0;if(c>bc){bc=c;best=x;}}groups.push(best);}
+    for(const kk of groups){const [x,y]=kk.split(",").map(Number),p=P([x,y]),w=refV,h=LH+1;
+      const cands=[[p[0]+6+w/2,p[1]-6-h/2],[p[0]-6-w/2,p[1]-6-h/2],[p[0]+6+w/2,p[1]+6+h/2],[p[0]-6-w/2,p[1]+6+h/2],
+        [p[0],p[1]-10-h/2],[p[0],p[1]+10+h/2],[p[0]+12+w/2,p[1]],[p[0]-12-w/2,p[1]]];
+      const r=pick(cands,w,h,placed,obs,W,H);if(r.score>=3000)placed.pop();plan.push({kind:"n",k:kk,r});}}
+  ckt._lblKey=k;ckt._lblPlan=plan;return plan;}
+function drawLabels(ctx,ckt,o,P,cnt){if(o.noLabels)return;
+  const plan=planLabels(ctx,ckt,o,P,cnt),vs=o.vScale||1;ctx.font=LFONT;ctx.textBaseline="middle";ctx.textAlign="center";
+  for(const L of plan){const r=L.r,cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2;
+    if(L.kind==="v"){const n=L.lines.length;L.lines.forEach((s,i)=>{ctx.fillStyle=n>1&&i===0?"#7FA595":COL.label;ctx.fillText(s,cx,cy+(i-(n-1)/2)*LH);});}
+    else if(L.kind==="i"){if(r.score>=400||!ckt.els.includes(L.e)||Math.abs(L.e.I)<1e-9)continue;ctx.fillStyle=COL.cur;ctx.fillText(fmtSI(Math.abs(L.e.I),"A"),cx,cy);}
+    else{if(r.score>=3000)continue;const v=ckt.nodeV(L.k),s=fmtSI(v,"V");ctx.fillStyle="rgba(14,26,22,0.85)";ctx.fillRect(r.x0,r.y0,r.x1-r.x0,r.y1-r.y0);
+      const c=vColor(v,vs);ctx.fillStyle=c==="rgb(124,139,133)"?"#C9DCD3":c;ctx.fillText(s,cx,cy);}}}
 /* ================= DRAWING ================= */
 const COL={bg:"#0E1A16",grid:"rgba(200,230,215,0.10)",part:"#E6F0EB",label:"#9FBCAF",wire:"#C9DCD3",dot:"#FFD43B",sel:"rgba(79,185,138,0.45)",hl:"rgba(255,212,59,0.30)",cur:"#FFE58A",pos:[255,107,74],neg:[77,171,247],zero:[124,139,133]};
 function vColor(v,scale){const t=Math.max(-1,Math.min(1,v/scale)),c=t>=0?COL.pos:COL.neg,k=Math.abs(t);
@@ -1258,21 +1332,9 @@ function drawCircuit(ctx,ckt,o){
     for(const e of ckt.els){if(e.t==="g")continue;
       if(TRI[e.t]){const cur=triCurrents(e);triLeads(e).forEach((path,k)=>{if(Math.abs(cur[k]/o.imax)<0.004)return;run(polyPts(P,path),e.ph[k]);});continue;}
       if(Math.abs(e.I/o.imax)<0.004)continue;run([P(e.a),P(e.b)],e.phase);}}
-  ctx.font="500 11px 'IBM Plex Mono', ui-monospace, monospace";ctx.textBaseline="middle";
-  for(const e of ckt.els){if(e.t==="g"||e.t==="w")continue;
-    if(TRI[e.t]){const lab=elLabel(e);const [x,y]=e.o;ctx.fillStyle=COL.label;ctx.textAlign="center";
-      if(e.t==="op"){const p=P([x+1.4,Math.max(e.a[1],e.b[1])+0.85]);if(lab)ctx.fillText(lab,p[0],p[1]);}
-      else if(lab){const p=P([x+1.2,y-1.25]);ctx.fillText(lab,p[0],p[1]);}
-      continue;}
-    const [ax,ay]=P(e.a),[bx,by]=P(e.b),mx=(ax+bx)/2,my=(ay+by)/2,hor=Math.abs(bx-ax)>=Math.abs(by-ay);
-    const lab=elLabel(e);const force=e.lab&&/^[<>]/.test(e.lab)?e.lab[0]:"";const flip=!hor&&(force?force==="<":o.flipX!=null&&e.a[0]>=o.flipX);const left=!hor&&!flip&&!force&&o.leftX!=null&&e.a[0]<=o.leftX;const twoI=live&&o.showI&&Math.abs(e.I)>1e-9&&e.t!=="s";
-    if(lab){ctx.fillStyle=COL.label;if(hor){ctx.textAlign="center";ctx.fillText(lab,mx,my-19);}else{ctx.textAlign=flip?"right":"left";ctx.fillText(lab,mx+(flip?-16:16),my-((flip||left)&&twoI?8:0));}}
-    if(live&&o.showI&&Math.abs(e.I)>1e-9&&e.t!=="s"){ctx.fillStyle=COL.cur;const s=fmtSI(Math.abs(e.I),"A");if(hor){ctx.textAlign="center";ctx.fillText(s,mx,my+19);}else if(flip){ctx.textAlign="right";ctx.fillText(s,mx-16,my+8);}else if(left){ctx.textAlign="left";ctx.fillText(s,mx+16,lab?my+8:my);}else{ctx.textAlign="right";ctx.fillText(s,mx-16,my);}}
-  }
-  if(live&&o.showV){ctx.textAlign="left";for(const [k] of cnt){const [x,y]=k.split(",").map(Number);const v=ckt.nodeV(k);const s=fmtSI(v,"V");const w=ctx.measureText(s).width;
-    ctx.fillStyle="rgba(14,26,22,0.8)";ctx.fillRect(ox+x*G+5,oy+y*G-15,w+6,14);const c=vColor(v,vs);ctx.fillStyle=c==="rgb(124,139,133)"?"#C9DCD3":c;ctx.fillText(s,ox+x*G+8,oy+y*G-8);}}
+  drawLabels(ctx,ckt,o,P,cnt);
   if(o.selNode){const [x,y]=o.selNode.split(",").map(Number);ctx.strokeStyle="#4FB98A";ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(ox+x*G,oy+y*G,9,0,7);ctx.stroke();}
-  if(o.preview){ctx.globalAlpha=0.55;drawCircuit(ctx,{els:[o.preview],nodeV:()=>0,pv:()=>0},{G,ox,oy});ctx.globalAlpha=1;}
+  if(o.preview){ctx.globalAlpha=0.55;drawCircuit(ctx,{els:[o.preview],nodeV:()=>0,pv:()=>0},{G,ox,oy,noLabels:1});ctx.globalAlpha=1;}
 }
 
 /* ================= SIM VIEW (used by the Simulator tab and inside question cards) ================= */
@@ -1294,9 +1356,14 @@ class SimView{
       h=Math.round((this.rows-1)*this.G+this.oy*2);this.flipX=this.cols-3;this.leftX=1;}
     else{let x0=99,y0=99,x1=-99,y1=-99;for(const e of this.byIdx||[])for(const p of terms(e)){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);}
       if(x0>x1){x0=0;x1=10;y0=0;y1=8;}
-      const padX=44;this.G=Math.max(16,Math.min(34,(w-padX*2)/Math.max(1,x1-x0)));this.ox=(w-(x1-x0)*this.G)/2-x0*this.G;this.oy=26-y0*this.G;
-      h=Math.round((y1-y0)*this.G+60);this.flipX=x1-1;this.leftX=x0;this.cols=0;this.rows=0;}
+      const f=this.fitEmbed(w,x0,y0,x1,y1);this.G=f.G;this.ox=f.ox;this.oy=f.oy;h=f.h;this.flipX=x1-1;this.leftX=x0;this.cols=0;this.rows=0;}
     this.cssW=w;this.cssH=h;this.cv.width=Math.round(w*dpr);this.cv.height=Math.round(h*dpr);this.cv.style.height=h+"px";this.ctx.setTransform(dpr,0,0,dpr,0,0);this.dirty=true;}
+  fitEmbed(w,x0,y0,x1,y1){const G0=Math.max(16,Math.min(34,(w-40)/Math.max(1,x1-x0)));let best=null;
+    for(const s of [1,0.94,0.88,0.82,0.76,0.7,0.64,0.58]){const G=Math.max(14,G0*s),ox=(w-(x1-x0)*G)/2-x0*G,oy=26-y0*G,h=(y1-y0)*G+56,P=p=>[ox+p[0]*G,oy+p[1]*G];
+      const Pf=p=>[ox+p[0]*G,oy+500+p[1]*G];const plan=planLabels(this.ctx,this.ckt,{G,ox,oy:oy+500,W:w,H:1e5,live:false},Pf,new Map());let top=0,bot=h,bad=0;
+      for(const L of plan){top=Math.min(top,L.r.y0-500-4);bot=Math.max(bot,L.r.y1-500+4);bad+=Math.min(L.r.score,6000)-(L.r.score<400?L.r.score:0);}
+      bad+=(1-s)*1500;const c={G,ox,oy:oy-top,h:Math.round(bot-top),bad};if(!best||bad<best.bad)best=c;}
+    return best;}
   pt(ev){const r=this.cv.getBoundingClientRect();return [ev.clientX-r.left,ev.clientY-r.top];}
   gridOf(px){let x=Math.round((px[0]-this.ox)/this.G),y=Math.round((px[1]-this.oy)/this.G);if(this.mode==="main"){x=Math.max(0,Math.min(this.cols-1,x));y=Math.max(0,Math.min(this.rows-1,y));}return [x,y];}
   hit(px){let best=null,bd=Math.max(10,this.G*0.38);const P=p=>[this.ox+p[0]*this.G,this.oy+p[1]*this.G];
@@ -1345,7 +1412,7 @@ class SimView{
     this.draw();this.acc+=dt;if(this.inspector&&this.acc>0.05){this.acc=0;this.inspector.tick();}}
   draw(){const ctx=this.ctx,w=this.cssW,h=this.cssH;ctx.fillStyle=COL.bg;ctx.fillRect(0,0,w,h);
     drawCircuit(ctx,this.ckt,{G:this.G,ox:this.ox,oy:this.oy,cols:this.cols,rows:this.rows,grid:this.mode==="main",live:this.live,imax:this.imax,vScale:this.vScale,
-      sel:this.sel,selNode:this.selNode,hl:this.hl,showV:this.showV,showI:this.showI,preview:this.preview,flipX:this.flipX,leftX:this.leftX});}
+      sel:this.sel,selNode:this.selNode,hl:this.hl,showV:this.showV,showI:this.showI,preview:this.preview,flipX:this.flipX,leftX:this.leftX,W:this.cssW,H:this.cssH});}
 }
 
 /* ================= INSPECTOR ================= */
