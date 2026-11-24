@@ -47,6 +47,9 @@ h4{font-family:var(--f-display);font-weight:700;font-size:.95rem;margin:0}
 .meter{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px}
 .meter i{height:6px;border-radius:3px;background:var(--line)}
 .meter i.ok{background:var(--ok)} .meter i.bad{background:var(--bad)}
+.syncnote{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);margin:-10px 0 16px;min-height:1.2em}
+.syncnote[data-state="synced"]::before{content:"✓ ";color:var(--ok)}
+.syncnote[data-state="offline"]{color:var(--bad)}
 .qlist{display:flex;flex-direction:column;gap:16px}
 .q{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
 .q-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -162,6 +165,7 @@ h4{font-family:var(--f-display);font-weight:700;font-size:.95rem;margin:0}
       </div>
     </div>
     <div class="meter" id="meter"><i></i><i></i><i></i><i></i></div>
+    <p class="syncnote" id="syncNote" role="status" aria-live="polite"></p>
     <div class="qlist" id="qlist"></div>
     <div id="doneBox"></div>
     <div id="practiceWrap" hidden>
@@ -201,7 +205,7 @@ h4{font-family:var(--f-display);font-weight:700;font-size:.95rem;margin:0}
 const STORE_KEY="dailybench.v1";
 function loadStore(){let s=null;try{s=JSON.parse(localStorage.getItem(STORE_KEY)||"null");}catch(e){}
   s=s&&s.days?s:{days:{},missed:[],total:0,correct:0};s.sets=s.sets||{};s.review=s.review||{};s.missed=s.missed||[];return s;}
-function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(store));}catch(e){}}
+function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(store));}catch(e){}if(typeof schedulePush==="function")schedulePush();}
 let store=loadStore();
 
 /* ---------------- helpers ---------------- */
@@ -1691,4 +1695,61 @@ let rzT=0;window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout
   document.querySelectorAll(".plotwrap canvas").forEach(c=>{const q=c.closest(".q");if(q)drawPlot(c,BANK_BY_ID[q.dataset.qid].plot,+c.dataset.stage||9);});},120);});
 setTool("select");
 route();loadMain("led");renderToday();requestAnimationFrame(frameLoop);
+/* ================= SAVED PROGRESS =================
+   The browser copy (localStorage) is only a fast cache: inside the Claude app it can be cleared.
+   The real record is one private document per person in the artifact's db, at
+   data/users/<id>/progress (readable only by that person). Every answer saves; every open or
+   return to the page loads the record and merges it with the device copy. */
+var Sync={ref:null,ready:false,busy:false,pending:false,timer:0,retry:0,state:"loading"};
+const SYNC_TEXT={loading:"Loading your saved progress…",syncing:"Saving…",synced:"Progress saved to your Claude account",
+  local:"Progress is saved on this device only",offline:"Couldn't reach your saved progress. Answers are kept on this device and will sync when it's back."};
+function setSync(s){Sync.state=s;const el=document.getElementById("syncNote");if(el){el.textContent=SYNC_TEXT[s]||"";el.dataset.state=s;}}
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),ms))]);}
+function stableJSON(v){if(Array.isArray(v))return "["+v.map(stableJSON).join(",")+"]";
+  if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stableJSON(v[k])).join(",")+"}";return JSON.stringify(v===undefined?null:v);}
+function cleanStore(s){const o={days:{},sets:{},review:{},missed:[],total:0,correct:0,v:2};if(!s||typeof s!=="object")return o;
+  if(s.days&&typeof s.days==="object")for(const [d,rec] of Object.entries(s.days)){if(rec&&typeof rec==="object"){o.days[d]={};for(const [q,a] of Object.entries(rec))if(a&&typeof a==="object")o.days[d][q]={ok:!!a.ok,given:a.given==null?null:a.given};}}
+  if(s.sets&&typeof s.sets==="object")for(const [d,ids] of Object.entries(s.sets))if(Array.isArray(ids))o.sets[d]=ids.filter(x=>typeof x==="string");
+  if(s.review&&typeof s.review==="object")for(const [q,k] of Object.entries(s.review))if(typeof k==="string")o.review[q]=k;
+  if(Array.isArray(s.missed))o.missed=s.missed.filter(x=>typeof x==="string");
+  o.total=Number(s.total)||0;o.correct=Number(s.correct)||0;return o;}
+function mergeStores(remote,local){
+  const r=cleanStore(remote),l=cleanStore(local),m=cleanStore(null);
+  for(const src of [r,l])for(const [d,rec] of Object.entries(src.days)){const t=m.days[d]||(m.days[d]={});for(const [q,a] of Object.entries(rec))if(!t[q])t[q]=a;}
+  const answered=(d,ids)=>ids.filter(id=>m.days[d]&&m.days[d][id]).length;
+  for(const d of new Set([...Object.keys(r.sets),...Object.keys(l.sets)])){const a=r.sets[d],b=l.sets[d];
+    m.sets[d]=!a?b:!b?a:(answered(d,b)>answered(d,a)?b:a);}
+  for(const src of [r,l])for(const [q,k] of Object.entries(src.review))if(!m.review[q]||k>m.review[q])m.review[q]=k;
+  m.missed=[...new Set([...r.missed,...l.missed])];
+  m.total=Math.max(r.total,l.total);m.correct=Math.max(r.correct,l.correct);
+  return m;}
+function forUpload(s){const o=cleanStore(s);const cut=addDays(TODAY,-21);for(const d of Object.keys(o.sets))if(d<cut)delete o.sets[d];return o;}
+function todayView(s){return stableJSON([s.sets[TODAY]||null,s.days[TODAY]||null]);}
+function schedulePush(){if(!Sync||!Sync.ready)return;clearTimeout(Sync.timer);setSync("syncing");Sync.timer=setTimeout(pushRemote,350);}
+async function pushRemote(){if(!Sync.ref||!Sync.ready)return;if(Sync.busy){Sync.pending=true;return;}
+  Sync.busy=true;
+  try{await withTimeout(Sync.ref.set(forUpload(store)),15000);setSync("synced");Sync.retry=0;}
+  catch(e){if(e&&e.code==="invalid_argument"){Sync.ready=false;Sync.ref=null;setSync("local");}
+    else{setSync("offline");if(Sync.retry++<5)setTimeout(pushRemote,2000+Math.random()*3000*Sync.retry);}}
+  finally{Sync.busy=false;if(Sync.pending){Sync.pending=false;pushRemote();}}}
+async function pullRemote(){if(!Sync.ref)return;
+  let snap;try{snap=await withTimeout(Sync.ref.get(),10000);}catch(e){if(!Sync.ready)setSync("offline");else setSync(Sync.state==="syncing"?"syncing":"offline");if(!Sync.ready)setTimeout(pullRemote,15000);return;}
+  const remote=snap.exists?snap.data():null;
+  const shown=todayView(store),merged=mergeStores(remote,store);
+  store=merged;try{localStorage.setItem(STORE_KEY,JSON.stringify(store));}catch(e){}
+  Sync.ready=true;
+  const remoteSame=remote&&stableJSON(forUpload(remote))===stableJSON(forUpload(merged));
+  if(remoteSame)setSync("synced");else{setSync("syncing");pushRemote();}
+  if(todayView(store)!==shown)renderToday();else refreshStats();}
+async function initSync(){setSync("loading");
+  let db=null,user=null;
+  try{if(window.claude&&typeof window.claude.use==="function")[db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);}catch(e){}
+  if(!db||!user){setSync("local");return;}
+  let id=null;try{id=await user.id();}catch(e){}
+  if(!id){setSync("local");return;}
+  try{Sync.ref=db.doc("data/users/"+id+"/progress");}catch(e){setSync("local");return;}
+  await pullRemote();
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pullRemote();});
+  window.addEventListener("pageshow",()=>pullRemote());}
+initSync();
 </script>

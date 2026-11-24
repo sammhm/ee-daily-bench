@@ -15,7 +15,7 @@ A daily electrical-engineering practice app with a built-in circuit simulator, i
 - **Predict, then test:** experiments ask you to predict what a change will do, then apply it to the live circuit and explain the result.
 - **Spaced review:** missed questions, and correct ones you mark as guessed, come back two days later.
 - Concept diagrams: diode I-V curves, RC charging, RMS, Bode plot, aliasing, ADC steps, NTC vs RTD, switch bounce, MOSFET R_DS(on) vs V_GS, op-amp gain-bandwidth, buck duty cycle, rectifier ripple, 4–20 mA.
-- Progress is stored in the browser (`localStorage`).
+- Progress is saved to the viewer's Claude account: one private document per person at `data/users/<id>/progress` in the artifact's database (capabilities `db` + `user`), readable only by that person. Every answer saves; opening or returning to the page reloads it and merges it with the browser copy (`localStorage`, kept only as a fast cache). Opened outside claude.ai, the page falls back to the browser copy and says so.
 
 ## Simulator
 - Parts: wire, resistor, battery, AC source, current source, capacitor, inductor, diode, Schottky, Zener, LED, switch, op-amp, N-channel MOSFET, NPN BJT, ground.
